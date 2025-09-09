@@ -1,5 +1,6 @@
 'use client'
 
+import React from 'react'
 import { useRouter } from 'next/navigation'
 import { Market } from '@/types/market'
 import { formatVolume, formatPercentage } from '@/lib/utils'
@@ -31,6 +32,24 @@ export function MarketCard({ market }: MarketCardProps) {
 
   const handleCardClick = () => {
     router.push(`/bet/${market.id}`)
+  }
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // TODO: Implement share functionality
+    console.log('Share clicked')
+  }
+
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // TODO: Implement bookmark functionality
+    console.log('Bookmark clicked')
+  }
+
+  const handleOutcomeClick = (e: React.MouseEvent, outcome: any) => {
+    e.stopPropagation()
+    // Navigate to bet page with pre-selected outcome
+    router.push(`/bet/${market.id}?outcome=${outcome.id}`)
   }
 
   return (
@@ -70,10 +89,20 @@ export function MarketCard({ market }: MarketCardProps) {
           </div>
           
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 hover:bg-primary/10"
+              onClick={handleShareClick}
+            >
               <Share2 className="h-3 w-3" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 hover:bg-primary/10"
+              onClick={handleBookmarkClick}
+            >
               <Bookmark className="h-3 w-3" />
             </Button>
           </div>
@@ -110,6 +139,7 @@ export function MarketCard({ market }: MarketCardProps) {
                 "flex-1 h-8 text-xs font-medium transition-all duration-200 hover:scale-105",
                 getColorClass(outcome.color)
               )}
+              onClick={(e) => handleOutcomeClick(e, outcome)}
             >
               {outcome.name} {outcome.probability.toFixed(1)}%
             </Button>

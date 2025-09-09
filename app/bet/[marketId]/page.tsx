@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Market, MarketOutcome } from '@/types/market'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { ProbabilityChart } from '@/components/probability-chart'
 export default function BetPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [market, setMarket] = useState<Market | null>(null)
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null)
   const [betAmount, setBetAmount] = useState('')
@@ -31,6 +32,16 @@ export default function BetPage() {
         if (polymarketEvent) {
           const convertedMarket = convertPolymarketToMarket(polymarketEvent)
           setMarket(convertedMarket)
+          
+          // Pre-select outcome if specified in URL
+          const outcomeId = searchParams.get('outcome')
+          if (outcomeId) {
+            const outcome = convertedMarket.outcomes.find(o => o.id === outcomeId)
+            if (outcome) {
+              setSelectedOutcome(outcome)
+            }
+          }
+          
           setError(null)
         } else {
           setError('Market not found')
@@ -46,7 +57,7 @@ export default function BetPage() {
     }
 
     loadMarket()
-  }, [params.marketId, router])
+  }, [params.marketId, router, searchParams])
 
   const handlePlaceBet = async () => {
     if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) return

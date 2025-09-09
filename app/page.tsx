@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
-import { CategoryFilter } from '@/components/category-filter'
-import { FilterBar } from '@/components/filter-bar'
 import { MarketCard } from '@/components/market-card'
 import { FavoritesModal } from '@/components/favorites-modal'
 import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
@@ -94,7 +92,12 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navigation />
+        <Navigation 
+          categories={categories} 
+          selectedCategory={selectedCategory} 
+          onCategoryChange={handleCategoryChange}
+          onFavoritesClick={handleFavoritesClick}
+        />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -110,7 +113,12 @@ export default function Home() {
   if (error) {
     return (
       <div className="min-h-screen bg-background">
-        <Navigation />
+        <Navigation 
+          categories={categories} 
+          selectedCategory={selectedCategory} 
+          onCategoryChange={handleCategoryChange}
+          onFavoritesClick={handleFavoritesClick}
+        />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -130,18 +138,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Navigation />
-      
-      <CategoryFilter 
+      <Navigation 
         categories={categories} 
         selectedCategory={selectedCategory} 
-        onCategoryChange={handleCategoryChange} 
-      />
-      
-      <FilterBar 
-        filterOptions={filterOptions} 
-        selectedFilter={selectedFilter} 
-        onFilterChange={handleFilterChange}
+        onCategoryChange={handleCategoryChange}
         onFavoritesClick={handleFavoritesClick}
       />
       
