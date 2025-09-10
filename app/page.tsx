@@ -14,7 +14,12 @@ const categories = [
   { id: 'Politics', name: 'Politics' },
   { id: 'Crypto', name: 'Crypto' },
   { id: 'Tech', name: 'Tech' },
-  { id: 'Sports', name: 'Sports' }
+  { id: 'Sports', name: 'Sports' },
+  { id: 'Geopolitics', name: 'Geopolitics' },
+  { id: 'Culture', name: 'Culture' },
+  { id: 'World', name: 'World' },
+  { id: 'Economy', name: 'Economy' },
+  { id: 'Trump', name: 'Trump' }
 ]
 
 const filterOptions = [

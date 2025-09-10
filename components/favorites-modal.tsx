@@ -5,7 +5,7 @@ import { FavoriteBet } from '@/types/market'
 import { Button } from '@/components/ui/button'
 import { X, Heart, Trash2, Calendar, DollarSign, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getFavorites, removeFromFavorites } from '@/lib/utils'
+import { getFavorites, removeFromFavorites, getStandardizedColor } from '@/lib/utils'
 
 interface FavoritesModalProps {
   isOpen: boolean
@@ -138,7 +138,7 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
                         size="sm"
                         className={cn(
                           "h-6 px-2 text-xs font-medium",
-                          getColorClass(favorite.outcome.color)
+                          getColorClass(getStandardizedColor(favorite.outcome.name, favorite.outcome.color))
                         )}
                       >
                         {favorite.outcome.name}

@@ -140,6 +140,117 @@ export async function getCustomBets(): Promise<CustomBet[]> {
           created_at: new Date().toISOString()
         }
       ]
+    },
+    {
+      id: 'trump-2028-election',
+      title: 'Will Trump run for President in 2028?',
+      description: 'Will Donald Trump announce his candidacy for the 2028 US Presidential Election?',
+      category: 'Trump',
+      expired_day: '2027-12-31',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 15000,
+      outcomes: [
+        {
+          id: 'trump-2028-yes',
+          bet_id: 'trump-2028-election',
+          name: 'Yes',
+          probability: 45,
+          color: 'green',
+          volume: 6750,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'trump-2028-no',
+          bet_id: 'trump-2028-election',
+          name: 'No',
+          probability: 55,
+          color: 'red',
+          volume: 8250,
+          created_at: new Date().toISOString()
+        }
+      ]
+    },
+    {
+      id: 'economy-recession-2025',
+      title: 'Will there be a recession in 2025?',
+      description: 'Will the US economy enter a recession (2 consecutive quarters of negative GDP growth) in 2025?',
+      category: 'Economy',
+      expired_day: '2025-12-31',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 25000,
+      outcomes: [
+        {
+          id: 'recession-2025-yes',
+          bet_id: 'economy-recession-2025',
+          name: 'Yes',
+          probability: 30,
+          color: 'green',
+          volume: 7500,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'recession-2025-no',
+          bet_id: 'economy-recession-2025',
+          name: 'No',
+          probability: 70,
+          color: 'red',
+          volume: 17500,
+          created_at: new Date().toISOString()
+        }
+      ]
+    },
+    {
+      id: 'world-cup-2026-winner',
+      title: 'Who will win the 2026 FIFA World Cup?',
+      description: 'Which country will win the 2026 FIFA World Cup?',
+      category: 'World',
+      expired_day: '2026-07-19',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 8000,
+      outcomes: [
+        {
+          id: 'world-cup-brazil',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Brazil',
+          probability: 25,
+          color: 'yellow',
+          volume: 2000,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-argentina',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Argentina',
+          probability: 20,
+          color: 'lightblue',
+          volume: 1600,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-france',
+          bet_id: 'world-cup-2026-winner',
+          name: 'France',
+          probability: 15,
+          color: 'blue',
+          volume: 1200,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-other',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Other',
+          probability: 40,
+          color: 'gray',
+          volume: 3200,
+          created_at: new Date().toISOString()
+        }
+      ]
     }
   ]
 }

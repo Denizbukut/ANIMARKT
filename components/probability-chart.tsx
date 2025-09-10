@@ -1,7 +1,7 @@
 'use client'
 
 import { MarketOutcome } from '@/types/market'
-import { cn } from '@/lib/utils'
+import { cn, getStandardizedColor } from '@/lib/utils'
 import { useState } from 'react'
 
 interface ProbabilityChartProps {
@@ -17,9 +17,13 @@ interface ChartDataPoint {
 export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('ALL')
   
+  // Get the primary outcome (Yes for yes/no questions, or first outcome)
+  const primaryOutcome = outcomes.find(o => o.name === 'Yes') || outcomes[0]
+  const primaryColor = getStandardizedColor(primaryOutcome?.name || '', primaryOutcome?.color)
+  
   // Generate historical data for the selected outcome (Yes option)
   const generateHistoricalData = (): ChartDataPoint[] => {
-    const currentProbability = outcomes.find(o => o.name === 'Yes')?.probability || 50
+    const currentProbability = primaryOutcome?.probability || 50
     const data: ChartDataPoint[] = []
     
     // Generate 7 months of data (Feb to Aug)
@@ -73,12 +77,49 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
     return 100 - ((probability - minProb) / range) * 80 // 80% of height for chart area
   }
 
+  // Get color values for the chart
+  const getChartColors = (color: string) => {
+    switch (color) {
+      case 'green':
+        return {
+          primary: '#22c55e',
+          gradientStart: '#22c55e',
+          gradientEnd: '#16a34a'
+        }
+      case 'red':
+        return {
+          primary: '#ef4444',
+          gradientStart: '#ef4444',
+          gradientEnd: '#dc2626'
+        }
+      case 'blue':
+        return {
+          primary: '#3b82f6',
+          gradientStart: '#3b82f6',
+          gradientEnd: '#2563eb'
+        }
+      default:
+        return {
+          primary: '#3b82f6',
+          gradientStart: '#3b82f6',
+          gradientEnd: '#2563eb'
+        }
+    }
+  }
+
+  const chartColors = getChartColors(primaryColor)
+
   return (
     <div className={cn("space-y-4", className)}>
       {/* Header with current probability and change */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold text-blue-400">{currentProbability}%</span>
+          <span className={cn(
+            "text-2xl font-bold",
+            primaryColor === 'green' ? "text-green-400" :
+            primaryColor === 'red' ? "text-red-400" :
+            "text-blue-400"
+          )}>{currentProbability}%</span>
           <span className="text-sm text-muted-foreground">chance</span>
           <div className="flex items-center gap-1">
             {change > 0 ? (
@@ -127,8 +168,8 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
               <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1" />
+                <stop offset="0%" stopColor={chartColors.gradientStart} stopOpacity="0.3" />
+                <stop offset="100%" stopColor={chartColors.gradientEnd} stopOpacity="0.1" />
               </linearGradient>
             </defs>
             
@@ -149,7 +190,7 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
                 const y = getYPosition(point.probability)
                 return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
               }).join(' ')}
-              stroke="#3b82f6"
+              stroke={chartColors.primary}
               strokeWidth="2"
               fill="none"
               strokeLinecap="round"
@@ -166,7 +207,7 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
                   cx={x}
                   cy={y}
                   r="2"
-                  fill="#3b82f6"
+                  fill={chartColors.primary}
                   className="hover:r-3 transition-all duration-200"
                 />
               )
@@ -202,12 +243,20 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
 
       {/* Current outcomes summary */}
       <div className="grid grid-cols-2 gap-3">
-        {outcomes.slice(0, 2).map((outcome) => (
-          <div key={outcome.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-            <span className="text-sm font-medium">{outcome.name}</span>
-            <span className="text-sm font-bold">{outcome.probability.toFixed(1)}%</span>
-          </div>
-        ))}
+        {outcomes.slice(0, 2).map((outcome) => {
+          const outcomeColor = getStandardizedColor(outcome.name, outcome.color)
+          return (
+            <div key={outcome.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+              <span className="text-sm font-medium">{outcome.name}</span>
+              <span className={cn(
+                "text-sm font-bold",
+                outcomeColor === 'green' ? "text-green-500" :
+                outcomeColor === 'red' ? "text-red-500" :
+                "text-blue-500"
+              )}>{outcome.probability.toFixed(1)}%</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

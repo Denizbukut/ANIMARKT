@@ -3,7 +3,7 @@
 import React from 'react'
 import { useRouter } from 'next/navigation'
 import { Market } from '@/types/market'
-import { formatVolume, formatPercentage } from '@/lib/utils'
+import { formatVolume, formatPercentage, getStandardizedColor } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Share2, Bookmark, Clock, TrendingUp, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -137,7 +137,7 @@ export function MarketCard({ market }: MarketCardProps) {
               size="sm"
               className={cn(
                 "flex-1 h-8 text-xs font-medium transition-all duration-200 hover:scale-105",
-                getColorClass(outcome.color)
+                getColorClass(getStandardizedColor(outcome.name, outcome.color))
               )}
               onClick={(e) => handleOutcomeClick(e, outcome)}
             >

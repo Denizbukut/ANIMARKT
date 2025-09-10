@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, Info, Menu, Heart, Filter, Bookmark, X } from 'lucide-react'
+import { Search, Flag, Info, Menu, Heart, Filter, Bookmark, X, CreditCard } from 'lucide-react'
 import { FavoritesModal } from './favorites-modal'
+import { PaymentHistoryModal } from './payment-history-modal'
 import { Category } from '@/types/market'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ export function Navigation({
 }: NavigationProps) {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false)
 
   return (
     <>
@@ -69,6 +71,15 @@ export function Navigation({
                 onClick={() => setIsFavoritesOpen(true)}
               >
                 <Heart className="h-3 w-3" />
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-7 w-7"
+                onClick={() => setIsPaymentHistoryOpen(true)}
+              >
+                <CreditCard className="h-3 w-3" />
               </Button>
               
               <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -116,6 +127,12 @@ export function Navigation({
       <FavoritesModal 
         isOpen={isFavoritesOpen} 
         onClose={() => setIsFavoritesOpen(false)} 
+      />
+
+      {/* Payment History Modal */}
+      <PaymentHistoryModal 
+        isOpen={isPaymentHistoryOpen} 
+        onClose={() => setIsPaymentHistoryOpen(false)} 
       />
 
       {/* Filter Modal */}

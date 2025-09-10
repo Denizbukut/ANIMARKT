@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, DollarSign, TrendingUp, Heart, Share2, Bookmark, Users, Clock, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { addToFavorites, isFavorite, removeFromFavorites, formatVolume } from '@/lib/utils'
+import { addToFavorites, isFavorite, removeFromFavorites, formatVolume, getStandardizedColor } from '@/lib/utils'
+import { PaymentModal } from '@/components/payment-modal-simple'
 import { fetchMarketById, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
@@ -22,6 +23,7 @@ export default function BetPage() {
   const [isPlacingBet, setIsPlacingBet] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
     async function loadMarket() {
@@ -82,18 +84,17 @@ export default function BetPage() {
     loadMarket()
   }, [params.marketId, router, searchParams])
 
-  const handlePlaceBet = async () => {
+  const handlePlaceBet = () => {
     if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) return
     
-    setIsPlacingBet(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setIsPlacingBet(false)
-    
-    // Create favorite bet
-    if (!market) return
+    console.log('BetPage: Opening payment modal...')
+    // Open payment modal instead of directly placing bet
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = (paymentId: string) => {
+    // Create favorite bet after successful payment
+    if (!market || !selectedOutcome) return
     
     const favoriteBet = {
       id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
@@ -107,6 +108,10 @@ export default function BetPage() {
     
     // Add to favorites
     addToFavorites(favoriteBet)
+    
+    setBetAmount('')
+    setSelectedOutcome(null)
+    setShowPaymentModal(false)
     
     // Show success message
     alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
@@ -288,13 +293,13 @@ export default function BetPage() {
                       variant={selectedOutcome?.id === outcome.id ? "default" : "outline"}
                       className={cn(
                         "w-full justify-between h-16 text-left p-4 transition-all duration-200",
-                        selectedOutcome?.id === outcome.id && getColorClass(outcome.color)
+                        selectedOutcome?.id === outcome.id && getColorClass(getStandardizedColor(outcome.name, outcome.color))
                       )}
                       onClick={() => setSelectedOutcome(outcome)}
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
-                          <div className={cn("w-3 h-3 rounded-full", getColorClass(outcome.color))} />
+                          <div className={cn("w-3 h-3 rounded-full", getColorClass(getStandardizedColor(outcome.name, outcome.color)))} />
                           <span className="font-semibold text-base">{outcome.name}</span>
                         </div>
                       </div>
@@ -331,7 +336,7 @@ export default function BetPage() {
                   <div className="mb-6 p-4 bg-muted/30 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", getColorClass(selectedOutcome.color))} />
+                        <div className={cn("w-3 h-3 rounded-full", getColorClass(getStandardizedColor(selectedOutcome.name, selectedOutcome.color)))} />
                         <span className="font-medium">{selectedOutcome.name}</span>
                       </div>
                       <span className="font-bold text-lg">{selectedOutcome.probability.toFixed(1)}%</span>
@@ -415,7 +420,7 @@ export default function BetPage() {
                     disabled={!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0 || isPlacingBet}
                     className={cn(
                       "w-full h-14 text-lg font-semibold transition-all duration-200",
-                      getColorClass(selectedOutcome?.color)
+                      getColorClass(getStandardizedColor(selectedOutcome?.name || '', selectedOutcome?.color))
                     )}
                   >
                     {isPlacingBet ? (
@@ -435,11 +440,25 @@ export default function BetPage() {
           {/* Disclaimer */}
           <div className="text-center mt-8">
             <p className="text-sm text-muted-foreground">
-              Betting can lead to losses. Only bet with WLD you can afford to lose.
+              Betting can lead to losses. Only bet with money you can afford to lose.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {selectedOutcome && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+          marketId={market.id}
+          outcomeId={selectedOutcome.id}
+          outcomeName={selectedOutcome.name}
+          probability={selectedOutcome.probability}
+          maxAmount={10000}
+        />
+      )}
     </div>
   )
 }
