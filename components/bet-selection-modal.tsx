@@ -29,6 +29,21 @@ export function BetSelectionModal({ market, isOpen, onClose }: BetSelectionModal
     
     setIsPlacingBet(false)
     onClose()
+    
+    // Create favorite bet
+    const favoriteBet = {
+      id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
+      marketId: market.id,
+      outcomeId: selectedOutcome.id,
+      betAmount: parseFloat(betAmount),
+      placedAt: new Date(),
+      market: market,
+      outcome: selectedOutcome
+    }
+    
+    // Add to favorites
+    addToFavorites(favoriteBet)
+    
     setBetAmount('')
     setSelectedOutcome(null)
     

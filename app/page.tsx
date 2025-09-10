@@ -5,6 +5,7 @@ import { Navigation } from '@/components/navigation'
 import { MarketCard } from '@/components/market-card'
 import { FavoritesModal } from '@/components/favorites-modal'
 import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
+import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
 
 // Categories based on real Polymarket data
@@ -36,9 +37,19 @@ export default function Home() {
     async function loadMarkets() {
       try {
         setLoading(true)
+        
+        // Load Polymarket events
         const polymarketEvents = await fetchPolymarketEvents()
         const convertedMarkets = polymarketEvents.map(convertPolymarketToMarket)
-        setMarkets(convertedMarkets)
+        
+        // Load custom bets
+        const customBets = await getCustomBets()
+        const convertedCustomBets = customBets.map(convertCustomBetToMarket)
+        
+        // Combine both types of markets
+        const allMarkets = [...convertedCustomBets, ...convertedMarkets]
+        
+        setMarkets(allMarkets)
         setError(null)
       } catch (err) {
         setError('Failed to load markets. Please try again later.')
@@ -70,23 +81,50 @@ export default function Home() {
     let filterMatch = true
     switch (selectedFilter) {
       case 'trending':
-        filterMatch = market.volume > 10000000 // High volume markets
+        // Markets with high volume and recent activity (trending)
+        filterMatch = market.volume > 5000000 && market.volume < 20000000
         break
       case 'ending-soon':
-        // For demo, consider markets ending in 2024 as "ending soon"
-        filterMatch = market.endTime?.includes('2024') || false
+        // Markets ending soon (within next 30 days or already ended)
+        const now = new Date()
+        const endDate = new Date(market.endTime || '2024-12-31')
+        const daysUntilEnd = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        filterMatch = daysUntilEnd <= 30 && daysUntilEnd >= 0
         break
       case 'high-volume':
+        // Markets with very high volume
         filterMatch = market.volume > 15000000
         break
       case 'live':
-        filterMatch = market.isLive || false
+        // Live markets
+        filterMatch = market.isLive === true
         break
       default:
         filterMatch = true
     }
 
     return categoryMatch && filterMatch
+  }).sort((a, b) => {
+    // Sort markets based on selected filter
+    switch (selectedFilter) {
+      case 'trending':
+        // Sort by volume (descending) for trending
+        return b.volume - a.volume
+      case 'ending-soon':
+        // Sort by end time (ascending) for ending soon
+        const aEndDate = new Date(a.endTime || '2024-12-31')
+        const bEndDate = new Date(b.endTime || '2024-12-31')
+        return aEndDate.getTime() - bEndDate.getTime()
+      case 'high-volume':
+        // Sort by volume (descending) for high volume
+        return b.volume - a.volume
+      case 'live':
+        // Sort live markets by volume (descending)
+        return b.volume - a.volume
+      default:
+        // Default sort by volume (descending)
+        return b.volume - a.volume
+    }
   })
 
   if (loading) {
@@ -97,6 +135,9 @@ export default function Home() {
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
           onFavoritesClick={handleFavoritesClick}
+          filterOptions={filterOptions}
+          selectedFilter={selectedFilter}
+          onFilterChange={handleFilterChange}
         />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
@@ -118,6 +159,9 @@ export default function Home() {
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
           onFavoritesClick={handleFavoritesClick}
+          filterOptions={filterOptions}
+          selectedFilter={selectedFilter}
+          onFilterChange={handleFilterChange}
         />
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center min-h-[400px]">
@@ -143,13 +187,44 @@ export default function Home() {
         selectedCategory={selectedCategory} 
         onCategoryChange={handleCategoryChange}
         onFavoritesClick={handleFavoritesClick}
+        filterOptions={filterOptions}
+        selectedFilter={selectedFilter}
+        onFilterChange={handleFilterChange}
       />
       
       {/* Main content */}
       <main className="container mx-auto px-3 md:px-4 py-4 md:py-6">
+        {/* Active Filter Display */}
+        {selectedFilter !== 'all' && (
+          <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-primary font-medium">
+                  Filter: {filterOptions.find(f => f.id === selectedFilter)?.name}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({filteredMarkets.length} markets)
+                </span>
+              </div>
+              <button 
+                onClick={() => handleFilterChange('all')}
+                className="text-xs text-primary hover:text-primary/80 underline"
+              >
+                Clear Filter
+              </button>
+            </div>
+          </div>
+        )}
+
         {filteredMarkets.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-muted-foreground">No markets found with the selected filters.</p>
+            <button 
+              onClick={() => handleFilterChange('all')}
+              className="mt-2 text-sm text-primary hover:text-primary/80 underline"
+            >
+              Clear all filters
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">

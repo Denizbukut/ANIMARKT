@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, Info, Menu, Heart, Filter, Bookmark } from 'lucide-react'
+import { Search, Flag, Info, Menu, Heart, Filter, Bookmark, X } from 'lucide-react'
 import { FavoritesModal } from './favorites-modal'
 import { Category } from '@/types/market'
 import { cn } from '@/lib/utils'
@@ -13,15 +13,22 @@ interface NavigationProps {
   selectedCategory: string
   onCategoryChange: (categoryId: string) => void
   onFavoritesClick?: () => void
+  filterOptions: any[]
+  selectedFilter: string
+  onFilterChange: (filterId: string) => void
 }
 
 export function Navigation({ 
   categories, 
   selectedCategory, 
   onCategoryChange,
-  onFavoritesClick
+  onFavoritesClick,
+  filterOptions,
+  selectedFilter,
+  onFilterChange
 }: NavigationProps) {
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   return (
     <>
@@ -93,7 +100,12 @@ export function Navigation({
             </div>
 
             {/* Additional Filter Button */}
-            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-7 w-7 flex-shrink-0"
+              onClick={() => setIsFilterOpen(true)}
+            >
               <Filter className="h-3 w-3" />
             </Button>
           </div>
@@ -105,6 +117,58 @@ export function Navigation({
         isOpen={isFavoritesOpen} 
         onClose={() => setIsFavoritesOpen(false)} 
       />
+
+      {/* Filter Modal */}
+      {isFilterOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-lg w-full max-w-sm p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Filter Markets</h2>
+              <Button variant="ghost" size="icon" onClick={() => setIsFilterOpen(false)} className="h-8 w-8">
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Filter Options */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-foreground">Sort by:</label>
+              <div className="space-y-2">
+                {filterOptions.map((filter) => (
+                  <Button
+                    key={filter.id}
+                    variant={selectedFilter === filter.id ? "default" : "outline"}
+                    className={cn(
+                      "w-full justify-start h-10",
+                      selectedFilter === filter.id && "bg-primary text-primary-foreground"
+                    )}
+                    onClick={() => {
+                      onFilterChange(filter.id)
+                      setIsFilterOpen(false)
+                    }}
+                  >
+                    {filter.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Clear Filter */}
+            <div className="mt-4 pt-4 border-t border-border">
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => {
+                  onFilterChange('all')
+                  setIsFilterOpen(false)
+                }}
+              >
+                Clear Filter
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

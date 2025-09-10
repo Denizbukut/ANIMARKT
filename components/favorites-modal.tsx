@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { FavoriteBet } from '@/types/market'
 import { Button } from '@/components/ui/button'
-import { X, Heart, Trash2, Calendar, DollarSign } from 'lucide-react'
+import { X, Heart, Trash2, Calendar, DollarSign, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getFavorites, removeFromFavorites } from '@/lib/utils'
 
@@ -20,6 +20,11 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
       setFavorites(getFavorites())
     }
   }, [isOpen])
+
+  // Refresh favorites when modal is opened
+  const refreshFavorites = () => {
+    setFavorites(getFavorites())
+  }
 
   const handleRemoveFavorite = (favoriteId: string) => {
     removeFromFavorites(favoriteId)
@@ -59,12 +64,17 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
         <div className="flex items-center justify-between p-6 border-b border-border">
           <div className="flex items-center gap-2">
             <Heart className="h-5 w-5 text-red-500 fill-current" />
-            <h2 className="text-lg font-semibold text-foreground">Favorite Bets</h2>
+            <h2 className="text-lg font-semibold text-foreground">My Bets</h2>
             <span className="text-sm text-muted-foreground">({favorites.length})</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={refreshFavorites} className="h-8 w-8">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -72,9 +82,9 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
           {favorites.length === 0 ? (
             <div className="text-center py-8">
               <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">No favorite bets yet</h3>
+              <h3 className="text-lg font-medium text-foreground mb-2">No bets placed yet</h3>
               <p className="text-sm text-muted-foreground">
-                Add bets to your favorites to see them here
+                Place your first bet to see it here
               </p>
             </div>
           ) : (

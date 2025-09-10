@@ -9,6 +9,7 @@ import { ArrowLeft, DollarSign, TrendingUp, Heart, Share2, Bookmark, Users, Cloc
 import { cn } from '@/lib/utils'
 import { addToFavorites, isFavorite, removeFromFavorites, formatVolume } from '@/lib/utils'
 import { fetchMarketById, convertPolymarketToMarket } from '@/lib/api'
+import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
 
 export default function BetPage() {
@@ -27,6 +28,8 @@ export default function BetPage() {
       try {
         setLoading(true)
         const marketId = params.marketId as string
+        
+        // First try to load from Polymarket
         const polymarketEvent = await fetchMarketById(marketId)
         
         if (polymarketEvent) {
@@ -36,7 +39,7 @@ export default function BetPage() {
           // Pre-select outcome if specified in URL
           const outcomeId = searchParams.get('outcome')
           if (outcomeId) {
-            const outcome = convertedMarket.outcomes.find(o => o.id === outcomeId)
+            const outcome = convertedMarket.outcomes.find((o: any) => o.id === outcomeId)
             if (outcome) {
               setSelectedOutcome(outcome)
             }
@@ -44,8 +47,28 @@ export default function BetPage() {
           
           setError(null)
         } else {
-          setError('Market not found')
-          setTimeout(() => router.push('/'), 2000)
+          // If not found in Polymarket, try custom bets
+          const customBets = await getCustomBets()
+          const customBet = customBets.find(bet => bet.id === marketId)
+          
+          if (customBet) {
+            const convertedMarket = convertCustomBetToMarket(customBet)
+            setMarket(convertedMarket)
+            
+            // Pre-select outcome if specified in URL
+            const outcomeId = searchParams.get('outcome')
+            if (outcomeId) {
+              const outcome = convertedMarket.outcomes.find((o: any) => o.id === outcomeId)
+              if (outcome) {
+                setSelectedOutcome(outcome)
+              }
+            }
+            
+            setError(null)
+          } else {
+            setError('Market not found')
+            setTimeout(() => router.push('/'), 2000)
+          }
         }
       } catch (err) {
         setError('Failed to load market data')
@@ -68,6 +91,22 @@ export default function BetPage() {
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     setIsPlacingBet(false)
+    
+    // Create favorite bet
+    if (!market) return
+    
+    const favoriteBet = {
+      id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
+      marketId: market.id,
+      outcomeId: selectedOutcome.id,
+      betAmount: parseFloat(betAmount),
+      placedAt: new Date(),
+      market: market,
+      outcome: selectedOutcome
+    }
+    
+    // Add to favorites
+    addToFavorites(favoriteBet)
     
     // Show success message
     alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
