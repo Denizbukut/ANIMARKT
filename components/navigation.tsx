@@ -3,8 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, Info, Menu, Heart, Filter, Bookmark, X } from 'lucide-react'
-import { FavoritesModal } from './favorites-modal'
+import { Search, Flag, Info, Menu, Filter, Bookmark, X } from 'lucide-react'
 import { Category } from '@/types/market'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +11,6 @@ interface NavigationProps {
   categories: Category[]
   selectedCategory: string
   onCategoryChange: (categoryId: string) => void
-  onFavoritesClick?: () => void
   filterOptions: any[]
   selectedFilter: string
   onFilterChange: (filterId: string) => void
@@ -22,12 +20,10 @@ export function Navigation({
   categories, 
   selectedCategory, 
   onCategoryChange,
-  onFavoritesClick,
   filterOptions,
   selectedFilter,
   onFilterChange
 }: NavigationProps) {
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
 
   return (
@@ -63,14 +59,6 @@ export function Navigation({
                 <Info className="h-3 w-3" />
               </Button>
               
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7"
-                onClick={() => setIsFavoritesOpen(true)}
-              >
-                <Heart className="h-3 w-3" />
-              </Button>
               
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Menu className="h-3 w-3" />
@@ -126,11 +114,6 @@ export function Navigation({
         </div>
       </nav>
 
-      {/* Favorites Modal */}
-      <FavoritesModal 
-        isOpen={isFavoritesOpen} 
-        onClose={() => setIsFavoritesOpen(false)} 
-      />
 
       {/* Filter Modal */}
       {isFilterOpen && (

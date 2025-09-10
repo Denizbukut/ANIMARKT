@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Navigation } from '@/components/navigation'
 import { MarketCard } from '@/components/market-card'
-import { FavoritesModal } from '@/components/favorites-modal'
 import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
+import { isFavorite } from '@/lib/utils'
 
 // Categories matching the navigation
 const categories = [
@@ -26,6 +26,7 @@ const categories = [
 
 const filterOptions = [
   { id: 'all', name: 'All' },
+  { id: 'favorites', name: 'Favorites' },
   { id: 'trending', name: 'Trending' },
   { id: 'ending-soon', name: 'Ending Soon' },
   { id: 'high-volume', name: 'High Volume' },
@@ -35,7 +36,6 @@ const filterOptions = [
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedFilter, setSelectedFilter] = useState('all')
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
   const [markets, setMarkets] = useState<Market[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -77,9 +77,6 @@ export default function Home() {
     setSelectedFilter(filterId)
   }
 
-  const handleFavoritesClick = () => {
-    setIsFavoritesOpen(true)
-  }
 
   // Filter markets based on selected category and filter
   const filteredMarkets = markets.filter(market => {
@@ -108,6 +105,10 @@ export default function Home() {
       case 'live':
         // Live markets
         filterMatch = market.isLive === true
+        break
+      case 'favorites':
+        // Favorite markets
+        filterMatch = isFavorite(`market-${market.id}`)
         break
       default:
         filterMatch = true
@@ -144,7 +145,6 @@ export default function Home() {
           categories={categories} 
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
-          onFavoritesClick={handleFavoritesClick}
           filterOptions={filterOptions}
           selectedFilter={selectedFilter}
           onFilterChange={handleFilterChange}
@@ -168,7 +168,6 @@ export default function Home() {
           categories={categories} 
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
-          onFavoritesClick={handleFavoritesClick}
           filterOptions={filterOptions}
           selectedFilter={selectedFilter}
           onFilterChange={handleFilterChange}
@@ -196,7 +195,6 @@ export default function Home() {
         categories={categories} 
         selectedCategory={selectedCategory} 
         onCategoryChange={handleCategoryChange}
-        onFavoritesClick={handleFavoritesClick}
         filterOptions={filterOptions}
         selectedFilter={selectedFilter}
         onFilterChange={handleFilterChange}
@@ -245,11 +243,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* Favorites Modal */}
-      <FavoritesModal 
-        isOpen={isFavoritesOpen} 
-        onClose={() => setIsFavoritesOpen(false)} 
-      />
     </div>
   )
 }

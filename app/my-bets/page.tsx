@@ -311,8 +311,14 @@ export default function MyBetsPage() {
                   {/* View Bet Button */}
                   <div className="mt-4 pt-4 border-t border-border">
                     <button 
-                      onClick={() => {
-                        console.log('Navigating to bet:', bet.market_id)
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        console.log('My-bets button mousedown, navigating to:', bet.market_id)
+                        window.location.href = `/bet/${bet.market_id}`
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        console.log('My-bets button click, navigating to:', bet.market_id)
                         window.location.href = `/bet/${bet.market_id}`
                       }}
                       className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"

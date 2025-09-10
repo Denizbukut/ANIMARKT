@@ -88,6 +88,13 @@ export interface UserCustomBet {
   updated_at: Date
 }
 
+export interface Favorite {
+  id: number
+  user_id: string
+  market_id: string
+  created_at: Date
+}
+
 // User functions
 export async function createUser(walletAddress: string, username?: string): Promise<User> {
   const query = `
@@ -299,6 +306,47 @@ export async function updateCategory(
   `
   const result = await pool.query(query, values)
   return result.rows[0] || null
+}
+
+// Favorite functions
+export async function addFavorite(userId: string, marketId: string): Promise<Favorite> {
+  const query = `
+    INSERT INTO favorites (user_id, market_id)
+    VALUES ($1, $2)
+    ON CONFLICT (user_id, market_id) DO NOTHING
+    RETURNING *
+  `
+  const result = await pool.query(query, [userId, marketId])
+  return result.rows[0]
+}
+
+export async function removeFavorite(userId: string, marketId: string): Promise<boolean> {
+  const query = `
+    DELETE FROM favorites 
+    WHERE user_id = $1 AND market_id = $2
+  `
+  const result = await pool.query(query, [userId, marketId])
+  return (result.rowCount ?? 0) > 0
+}
+
+export async function isFavorite(userId: string, marketId: string): Promise<boolean> {
+  const query = `
+    SELECT 1 FROM favorites 
+    WHERE user_id = $1 AND market_id = $2
+    LIMIT 1
+  `
+  const result = await pool.query(query, [userId, marketId])
+  return result.rows.length > 0
+}
+
+export async function getUserFavorites(userId: string): Promise<Favorite[]> {
+  const query = `
+    SELECT * FROM favorites 
+    WHERE user_id = $1
+    ORDER BY created_at DESC
+  `
+  const result = await pool.query(query, [userId])
+  return result.rows
 }
 
 export default pool

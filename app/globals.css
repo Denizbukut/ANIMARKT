@@ -99,10 +99,25 @@
   -webkit-user-select: none !important;
   -webkit-touch-callout: none !important;
   -webkit-tap-highlight-color: transparent !important;
+  cursor: pointer !important;
 }
 
 .market-card * {
   pointer-events: auto !important;
+}
+
+/* Force all child elements to allow pointer events */
+.market-card > * {
+  pointer-events: auto !important;
+}
+
+/* Override any conflicting styles */
+.market-card,
+.market-card *,
+.market-card *:before,
+.market-card *:after {
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }
 
 /* Custom scrollbar */
