@@ -91,7 +91,7 @@ export class EventListenerService {
     // 3. Verify the reference ID hash matches
     // 4. Confirm the success status
     
-    return event.success && event.transactionHash && event.blockNumber
+    return event.success && !!event.transactionHash && !!event.blockNumber
   }
 
   // Get transfer status by reference ID

@@ -62,6 +62,9 @@ export interface PaymentResponse {
   status: 'pending' | 'completed' | 'failed'
   amount: number
   currency: string
+  description?: string
+  marketId?: string
+  outcomeId?: string
   tokens?: TokensPayload[]
   network?: Network
   transactionHash?: string

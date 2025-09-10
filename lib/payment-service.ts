@@ -56,6 +56,9 @@ class PaymentService {
         status: 'pending',
         amount: paymentRequest.amount,
         currency: paymentRequest.currency,
+        description: paymentRequest.description,
+        marketId: paymentRequest.marketId,
+        outcomeId: paymentRequest.outcomeId,
         reference: initiateData.reference,
         createdAt: new Date().toISOString(),
         // TODO: Add MiniKit-specific fields
@@ -82,7 +85,7 @@ class PaymentService {
           isVerified,
           transactionHash: transferEvent.transactionHash,
           blockNumber: transferEvent.blockNumber,
-          network: 'ethereum' // TODO: Get from transfer event
+          network: 'wld' // TODO: Get from transfer event
         }
       }
 
@@ -148,9 +151,9 @@ class PaymentService {
       }, 5000) // Poll every 5 seconds
 
       // Clean up on timeout
-      timeout.addEventListener('timeout', () => {
+      setTimeout(() => {
         clearInterval(pollInterval)
-      })
+      }, timeoutMs)
     })
   }
 
@@ -228,3 +231,6 @@ class PaymentService {
 
 // Export singleton instance
 export const paymentService = new PaymentService()
+
+// Export types for use in other components
+export type { PaymentResponse, PaymentRequest, PaymentVerification } from '@/types/payment'
