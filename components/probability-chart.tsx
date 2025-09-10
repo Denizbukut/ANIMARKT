@@ -19,17 +19,37 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
   
   // Generate historical data for the selected outcome (Yes option)
   const generateHistoricalData = (): ChartDataPoint[] => {
-    const baseProbability = outcomes.find(o => o.name === 'Yes')?.probability || 26
+    const currentProbability = outcomes.find(o => o.name === 'Yes')?.probability || 50
     const data: ChartDataPoint[] = []
     
     // Generate 7 months of data (Feb to Aug)
     const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
-    const baseValues = [65, 75, 50, 65, 30, 25, 26] // Based on the image data
+    
+    // If current probability is 50%, show a flat line at 50%
+    // Otherwise, show some variation leading to current value
+    let baseValues: number[]
+    
+    if (currentProbability === 50) {
+      // Show some variation around 50% for new bets to create chart structure
+      baseValues = [48, 52, 49, 51, 50, 49, 50]
+    } else {
+      // Show some historical variation for active bets
+      const variation = Math.abs(currentProbability - 50) / 2
+      baseValues = [
+        currentProbability + variation,
+        currentProbability - variation,
+        currentProbability + variation * 0.5,
+        currentProbability - variation * 0.5,
+        currentProbability + variation * 0.3,
+        currentProbability - variation * 0.3,
+        currentProbability
+      ]
+    }
     
     months.forEach((month, index) => {
       data.push({
         date: month,
-        probability: baseValues[index]
+        probability: Math.max(5, Math.min(95, baseValues[index])) // Keep between 5-95%
       })
     })
     
@@ -40,14 +60,14 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
   const currentProbability = chartData[chartData.length - 1].probability
   const previousProbability = chartData[chartData.length - 2].probability
   const change = currentProbability - previousProbability
-  const changePercent = ((change / previousProbability) * 100).toFixed(0)
+  const changePercent = previousProbability > 0 ? ((change / previousProbability) * 100).toFixed(0) : '0'
 
   const timeframes = ['1H', '6H', '1D', '1W', '1M', 'ALL']
 
   // Find min and max for scaling
   const minProb = Math.min(...chartData.map(d => d.probability))
   const maxProb = Math.max(...chartData.map(d => d.probability))
-  const range = maxProb - minProb
+  const range = maxProb - minProb || 1 // Avoid division by zero
 
   const getYPosition = (probability: number) => {
     return 100 - ((probability - minProb) / range) * 80 // 80% of height for chart area
@@ -61,13 +81,20 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
           <span className="text-2xl font-bold text-blue-400">{currentProbability}%</span>
           <span className="text-sm text-muted-foreground">chance</span>
           <div className="flex items-center gap-1">
-            {change >= 0 ? (
+            {change > 0 ? (
               <div className="text-green-500">▲</div>
-            ) : (
+            ) : change < 0 ? (
               <div className="text-red-500">▼</div>
+            ) : (
+              <div className="text-muted-foreground">—</div>
             )}
-            <span className={cn("text-sm font-medium", change >= 0 ? "text-green-500" : "text-red-500")}>
-              {Math.abs(parseInt(changePercent))}%
+            <span className={cn(
+              "text-sm font-medium", 
+              change > 0 ? "text-green-500" : 
+              change < 0 ? "text-red-500" : 
+              "text-muted-foreground"
+            )}>
+              {change === 0 ? '0%' : `${Math.abs(parseInt(changePercent))}%`}
             </span>
           </div>
         </div>
