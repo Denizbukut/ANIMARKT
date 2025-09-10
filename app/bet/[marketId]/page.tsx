@@ -87,32 +87,97 @@ export default function BetPage() {
     
     setIsPlacingBet(true)
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setIsPlacingBet(false)
-    
-    // Create favorite bet
-    if (!market) return
-    
-    const favoriteBet = {
-      id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
-      marketId: market.id,
-      outcomeId: selectedOutcome.id,
-      betAmount: parseFloat(betAmount),
-      placedAt: new Date(),
-      market: market,
-      outcome: selectedOutcome
+    try {
+      // Create bet and save to database
+      if (!market) return
+      
+      // Get current user
+      const user = localStorage.getItem('currentUser')
+      let currentUser
+      if (user) {
+        currentUser = JSON.parse(user)
+      } else {
+        // Create demo user if none exists
+        currentUser = {
+          id: 'demo_user',
+          username: 'Demo User',
+          walletAddress: '0x123...abc'
+        }
+        localStorage.setItem('currentUser', JSON.stringify(currentUser))
+      }
+      
+      // Try to save bet to database via API, fallback to localStorage
+      let newBet
+      try {
+        const response = await fetch('/api/bets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            marketId: market.id,
+            outcomeId: selectedOutcome.id,
+            amount: parseFloat(betAmount),
+            walletAddress: currentUser.walletAddress,
+            transactionHash: `tx_${Date.now()}` // Simulate transaction hash
+          }),
+        })
+        
+        if (response.ok) {
+          newBet = await response.json()
+        } else {
+          throw new Error('API failed')
+        }
+      } catch (error) {
+        console.log('API failed, using localStorage fallback')
+        // Fallback to localStorage
+        newBet = {
+          id: `bet_${Date.now()}`,
+          user_id: currentUser.id,
+          market_id: market.id,
+          outcome_id: selectedOutcome.id,
+          amount: parseFloat(betAmount),
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          market_title: market.title,
+          outcome_name: selectedOutcome.name,
+          probability: selectedOutcome.probability
+        }
+        
+        // Save to localStorage
+        const existingBets = localStorage.getItem('userBets')
+        const bets = existingBets ? JSON.parse(existingBets) : []
+        bets.push(newBet)
+        localStorage.setItem('userBets', JSON.stringify(bets))
+      }
+      
+      // Create favorite bet for favorites system
+      const favoriteBet = {
+        id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
+        marketId: market.id,
+        outcomeId: selectedOutcome.id,
+        betAmount: parseFloat(betAmount),
+        placedAt: new Date(),
+        market: market,
+        outcome: selectedOutcome
+      }
+      
+      // Add to favorites
+      addToFavorites(favoriteBet)
+      
+      // Show success message
+      alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
+      
+      // Navigate back to home
+      router.push('/')
+      
+    } catch (error) {
+      console.error('Error placing bet:', error)
+      alert('Failed to place bet. Please try again.')
+    } finally {
+      setIsPlacingBet(false)
     }
-    
-    // Add to favorites
-    addToFavorites(favoriteBet)
-    
-    // Show success message
-    alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
-    
-    // Navigate back to home
-    router.push('/')
   }
 
   const handleToggleFavorite = () => {
@@ -135,8 +200,17 @@ export default function BetPage() {
     }
   }
 
-  const getColorClass = (color?: string) => {
-    switch (color) {
+  const getColorClass = (outcome: any) => {
+    // Für Yes/No Wetten: Grün für Yes, Rot für No
+    if (outcome.name?.toLowerCase().includes('yes') || outcome.name?.toLowerCase().includes('ja')) {
+      return 'bg-green-500'
+    }
+    if (outcome.name?.toLowerCase().includes('no') || outcome.name?.toLowerCase().includes('nein')) {
+      return 'bg-red-500'
+    }
+    
+    // Fallback zu ursprünglichen Farben für andere Wetten
+    switch (outcome.color) {
       case 'green': return 'bg-green-500'
       case 'red': return 'bg-red-500'
       case 'blue': return 'bg-blue-500'
@@ -283,18 +357,43 @@ export default function BetPage() {
                 <h3 className="text-lg font-semibold text-foreground mb-4">Select Your Option:</h3>
                 <div className="space-y-3">
                   {market.outcomes.map((outcome) => (
-                    <Button
+                    <div
                       key={outcome.id}
-                      variant={selectedOutcome?.id === outcome.id ? "default" : "outline"}
-                      className={cn(
-                        "w-full justify-between h-16 text-left p-4 transition-all duration-200",
-                        selectedOutcome?.id === outcome.id && getColorClass(outcome.color)
-                      )}
-                      onClick={() => setSelectedOutcome(outcome)}
+                      style={{
+                        backgroundColor: selectedOutcome?.id === outcome.id 
+                          ? (outcome.name?.toLowerCase().includes('yes') ? '#10b981' : 
+                             outcome.name?.toLowerCase().includes('no') ? '#ef4444' : 
+                             outcome.color === 'green' ? '#10b981' :
+                             outcome.color === 'red' ? '#ef4444' :
+                             outcome.color === 'blue' ? '#3b82f6' :
+                             outcome.color === 'yellow' ? '#eab308' :
+                             outcome.color === 'purple' ? '#8b5cf6' :
+                             outcome.color === 'teal' ? '#14b8a6' :
+                             outcome.color === 'brown' ? '#b45309' :
+                             outcome.color === 'lightblue' ? '#0ea5e9' :
+                             outcome.color === 'grey' ? '#6b7280' : '#6b7280')
+                          : 'transparent',
+                        color: selectedOutcome?.id === outcome.id ? 'white' : 'inherit',
+                        border: selectedOutcome?.id === outcome.id ? 'none' : '1px solid hsl(var(--border))',
+                        outline: 'none',
+                        boxShadow: 'none',
+                        WebkitTapHighlightColor: 'transparent',
+                        WebkitTouchCallout: 'none',
+                        WebkitUserSelect: 'none',
+                        userSelect: 'none'
+                      }}
+                      className="outcome-button w-full justify-between h-16 text-left p-4 rounded-lg flex items-center cursor-pointer"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        setSelectedOutcome(outcome)
+                      }}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onFocus={(e) => e.target.blur()}
                     >
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2">
-                          <div className={cn("w-3 h-3 rounded-full", getColorClass(outcome.color))} />
+                          <div className={cn("w-3 h-3 rounded-full", getColorClass(outcome))} />
                           <span className="font-semibold text-base">{outcome.name}</span>
                         </div>
                       </div>
@@ -302,7 +401,7 @@ export default function BetPage() {
                         <div className="font-bold text-lg">{outcome.probability.toFixed(1)}%</div>
                         <div className="text-sm opacity-80">chance</div>
                       </div>
-                    </Button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -331,7 +430,7 @@ export default function BetPage() {
                   <div className="mb-6 p-4 bg-muted/30 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", getColorClass(selectedOutcome.color))} />
+                        <div className={cn("w-3 h-3 rounded-full", getColorClass(selectedOutcome))} />
                         <span className="font-medium">{selectedOutcome.name}</span>
                       </div>
                       <span className="font-bold text-lg">{selectedOutcome.probability.toFixed(1)}%</span>
@@ -414,8 +513,10 @@ export default function BetPage() {
                     onClick={handlePlaceBet}
                     disabled={!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0 || isPlacingBet}
                     className={cn(
-                      "w-full h-14 text-lg font-semibold transition-all duration-200",
-                      getColorClass(selectedOutcome?.color)
+                      "w-full h-14 text-lg font-semibold transition-all duration-200 text-white",
+                      selectedOutcome?.name?.toLowerCase().includes('yes') && "bg-green-500 hover:bg-green-600",
+                      selectedOutcome?.name?.toLowerCase().includes('no') && "bg-red-500 hover:bg-red-600",
+                      !selectedOutcome?.name?.toLowerCase().includes('yes') && !selectedOutcome?.name?.toLowerCase().includes('no') && getColorClass(selectedOutcome)
                     )}
                   >
                     {isPlacingBet ? (

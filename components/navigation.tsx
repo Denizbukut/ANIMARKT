@@ -36,21 +36,22 @@ export function Navigation({
         <div className="container mx-auto px-4">
           {/* Top row - Logo, Search, Actions */}
           <div className="flex items-center justify-between h-12">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-sm">A</span>
-                </div>
-                <span className="font-bold text-lg text-foreground hidden sm:block">Ani Market</span>
-              </div>
-              
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search markets"
-                  className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 h-8 text-sm"
+                  className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 h-8 text-sm w-48"
                 />
               </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-4 text-sm"
+                  onClick={() => window.location.href = '/my-bets'}
+                >
+                  My Bets
+                </Button>
             </div>
 
             <div className="flex items-center gap-1">
@@ -81,7 +82,20 @@ export function Navigation({
           <div className="flex items-center gap-2 py-2 border-t border-border/50">
             {/* Categories */}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1">
-              {categories.map((category) => (
+              {[
+                { id: 'all', name: 'All Markets' },
+                { id: 'politics', name: 'Politics' },
+                { id: 'sports', name: 'Sports' },
+                { id: 'crypto', name: 'Crypto' },
+                { id: 'geopolitics', name: 'Geopolitics' },
+                { id: 'tech', name: 'Tech' },
+                { id: 'culture', name: 'Culture' },
+                { id: 'world', name: 'World' },
+                { id: 'economy', name: 'Economy' },
+                { id: 'trump', name: 'Trump' },
+                { id: 'elections', name: 'Elections' },
+                { id: 'mentions', name: 'Mentions' }
+              ].map((category) => (
                 <Button
                   key={category.id}
                   variant={selectedCategory === category.id ? "default" : "ghost"}

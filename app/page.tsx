@@ -8,13 +8,20 @@ import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
 
-// Categories based on real Polymarket data
+// Categories matching the navigation
 const categories = [
   { id: 'all', name: 'All Markets' },
-  { id: 'Politics', name: 'Politics' },
-  { id: 'Crypto', name: 'Crypto' },
-  { id: 'Tech', name: 'Tech' },
-  { id: 'Sports', name: 'Sports' }
+  { id: 'politics', name: 'Politics' },
+  { id: 'sports', name: 'Sports' },
+  { id: 'crypto', name: 'Crypto' },
+  { id: 'geopolitics', name: 'Geopolitics' },
+  { id: 'tech', name: 'Tech' },
+  { id: 'culture', name: 'Culture' },
+  { id: 'world', name: 'World' },
+  { id: 'economy', name: 'Economy' },
+  { id: 'trump', name: 'Trump' },
+  { id: 'elections', name: 'Elections' },
+  { id: 'mentions', name: 'Mentions' }
 ]
 
 const filterOptions = [
@@ -76,7 +83,10 @@ export default function Home() {
 
   // Filter markets based on selected category and filter
   const filteredMarkets = markets.filter(market => {
-    const categoryMatch = selectedCategory === 'all' || market.category === selectedCategory
+    // Category filtering - check both category and subcategory
+    const categoryMatch = selectedCategory === 'all' || 
+      market.category?.toLowerCase() === selectedCategory.toLowerCase() ||
+      market.subcategory?.toLowerCase() === selectedCategory.toLowerCase()
     
     let filterMatch = true
     switch (selectedFilter) {
