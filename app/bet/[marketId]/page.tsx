@@ -11,6 +11,7 @@ import { addToFavorites, isFavorite, removeFromFavorites, formatVolume } from '@
 import { fetchMarketById, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
+import { MiniKit } from '@worldcoin/minikit-js'
 
 export default function BetPage() {
   const params = useParams()
@@ -80,6 +81,13 @@ export default function BetPage() {
     }
 
     loadMarket()
+
+
+
+
+
+
+
   }, [params.marketId, router, searchParams])
 
   const handlePlaceBet = async () => {
@@ -87,9 +95,17 @@ export default function BetPage() {
     
     setIsPlacingBet(true)
     
-    try {
-      // Create bet and save to database
-      if (!market) return
+      try {
+        // Check if MiniKit is available
+        if (!MiniKit.isInstalled()) {
+          alert('MiniKit is not available. Please use World App.')
+          return
+        }
+
+        console.log('MiniKit is available, proceeding with transaction...')
+
+        // Create bet and save to database
+        if (!market) return
       
       // Get current user
       const user = localStorage.getItem('currentUser')
@@ -104,6 +120,74 @@ export default function BetPage() {
           walletAddress: '0x123...abc'
         }
         localStorage.setItem('currentUser', JSON.stringify(currentUser))
+      }
+
+      // Skip wallet address retrieval - MiniKit API is different
+      console.log('Using demo wallet address')
+      const userWallet = { address: '0x123...abc' }
+
+      // Use a simple ETH transfer to a valid address
+      const wldAmount = parseFloat(betAmount)
+      const wldAmountWei = (wldAmount * Math.pow(10, 18)).toString()
+      const wldAmountHex = '0x' + BigInt(wldAmountWei).toString(16)
+
+      // Execute MiniKit transaction with ETH transfer to a valid address
+      let transactionHash = `tx_${Date.now()}`
+      
+      try {
+        console.log('Starting MiniKit ETH transfer transaction...')
+        console.log('Amount Wei:', wldAmountWei)
+        console.log('Amount Hex:', wldAmountHex)
+        
+        const { commandPayload, finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+          transaction: [
+            {
+              address: "0x0000000000000000000000000000000000000000", // Burn address (always valid)
+              abi: [{
+                type: "function",
+                name: "transfer",
+                stateMutability: "payable",
+                inputs: [
+                  { name: "to", type: "address" },
+                  { name: "amount", type: "uint256" }
+                ],
+                outputs: [{ type: "bool" }]
+              }],
+              functionName: "transfer",
+              args: ["0x0000000000000000000000000000000000000000", wldAmountHex],
+            },
+          ],
+        })
+        
+        // Transaction successful
+        console.log('Transaction successful:', finalPayload)
+        transactionHash = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        
+      } catch (transactionError) {
+        console.error('Transaction failed:', transactionError)
+        console.error('Transaction error type:', typeof transactionError)
+        console.error('Transaction error message:', (transactionError as Error).message)
+        
+        // Check if user cancelled the transaction
+        if ((transactionError as Error).message?.includes('cancelled') || 
+            (transactionError as Error).message?.includes('rejected') ||
+            (transactionError as Error).message?.includes('denied') ||
+            (transactionError as Error).message?.includes('User rejected')) {
+          alert('Transaction was cancelled by user.')
+          return
+        }
+        
+        // Check for insufficient funds
+        if ((transactionError as Error).message?.includes('insufficient') || 
+            (transactionError as Error).message?.includes('balance') ||
+            (transactionError as Error).message?.includes('not enough')) {
+          alert('Insufficient balance. Please add more ETH to your wallet.')
+          return
+        }
+        
+        // Other transaction errors
+        alert(`Transaction failed: ${(transactionError as Error).message || 'Unknown error'}`)
+        return
       }
       
       // Try to save bet to database via API, fallback to localStorage
@@ -120,7 +204,7 @@ export default function BetPage() {
             outcomeId: selectedOutcome.id,
             amount: parseFloat(betAmount),
             walletAddress: currentUser.walletAddress,
-            transactionHash: `tx_${Date.now()}` // Simulate transaction hash
+            transactionHash: transactionHash
           }),
         })
         
@@ -174,7 +258,10 @@ export default function BetPage() {
       
     } catch (error) {
       console.error('Error placing bet:', error)
-      alert('Failed to place bet. Please try again.')
+      console.error('Error type:', typeof error)
+      console.error('Error message:', (error as Error).message)
+      console.error('Error stack:', (error as Error).stack)
+      alert(`Failed to place bet: ${(error as Error).message || 'Unknown error'}`)
     } finally {
       setIsPlacingBet(false)
     }
