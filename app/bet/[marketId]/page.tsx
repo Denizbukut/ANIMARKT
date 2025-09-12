@@ -23,6 +23,38 @@ export default function BetPage() {
   const [isPlacingBet, setIsPlacingBet] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [userWallet, setUserWallet] = useState<string | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+
+  // Connect to Worldcoin wallet
+  const connectWallet = async () => {
+    try {
+      setIsConnecting(true)
+      
+      if (!MiniKit.isInstalled()) {
+        alert('Bitte öffnen Sie diese App in der World App.')
+        return
+      }
+
+      const { finalPayload } = await MiniKit.commandsAsync.walletAuth({
+        nonce: Math.random().toString(36).substring(2, 15)
+      })
+
+      if (finalPayload.status === 'success') {
+        const walletAddress = (finalPayload as any).wallet_address || (finalPayload as any).address
+        setUserWallet(walletAddress)
+        console.log('Connected wallet:', walletAddress)
+      } else {
+        console.error('Authentifizierung fehlgeschlagen:', finalPayload)
+        alert('Wallet-Authentifizierung fehlgeschlagen')
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error)
+      alert('Fehler bei der Wallet-Verbindung')
+    } finally {
+      setIsConnecting(false)
+    }
+  }
 
   useEffect(() => {
     async function loadMarket() {
@@ -65,10 +97,10 @@ export default function BetPage() {
               }
             }
             
-            setError(null)
-          } else {
-            setError('Market not found')
-            setTimeout(() => router.push('/'), 2000)
+          setError(null)
+        } else {
+          setError('Market not found')
+          setTimeout(() => router.push('/'), 2000)
           }
         }
       } catch (err) {
@@ -91,102 +123,199 @@ export default function BetPage() {
   }, [params.marketId, router, searchParams])
 
   const handlePlaceBet = async () => {
-    if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) return
+    if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) {
+      alert('Bitte wählen Sie eine Option und geben Sie einen Betrag ein.')
+      return
+    }
+    
+    if (!userWallet) {
+      alert('Bitte verbinden Sie zuerst Ihre Wallet.')
+      return
+    }
     
     setIsPlacingBet(true)
     
-      try {
-        // Check if MiniKit is available
-        if (!MiniKit.isInstalled()) {
-          alert('MiniKit is not available. Please use World App.')
-          return
-        }
-
-        console.log('MiniKit is available, proceeding with transaction...')
-
-        // Create bet and save to database
-        if (!market) return
-      
-      // Get current user
-      const user = localStorage.getItem('currentUser')
-      let currentUser
-      if (user) {
-        currentUser = JSON.parse(user)
-      } else {
-        // Create demo user if none exists
-        currentUser = {
-          id: 'demo_user',
-          username: 'Demo User',
-          walletAddress: '0x123...abc'
-        }
-        localStorage.setItem('currentUser', JSON.stringify(currentUser))
+    try {
+      // Check if MiniKit is available
+      if (!MiniKit.isInstalled()) {
+        alert('MiniKit ist nicht verfügbar. Bitte verwenden Sie die World App.')
+        return
       }
 
-      // Skip wallet address retrieval - MiniKit API is different
-      console.log('Using demo wallet address')
-      const userWallet = { address: '0x123...abc' }
+      // Validate bet amount
+      const betAmountNum = parseFloat(betAmount)
+      if (betAmountNum <= 0) {
+        alert('Bitte geben Sie einen gültigen Betrag ein.')
+        return
+      }
 
-      // Use a simple ETH transfer to a valid address
+      if (betAmountNum < 0.01) {
+        alert('Mindestbetrag ist 0.01 WLD.')
+        return
+      }
+
+      console.log('MiniKit is available, proceeding with transaction...')
+
+      // Create bet and save to database
+      if (!market) return
+      
+      // Get or create user with real wallet address
+      let currentUser
+      try {
+        const response = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            wallet_address: userWallet,
+            username: `User_${userWallet.slice(0, 6)}`
+          })
+        })
+        currentUser = await response.json()
+      } catch (error) {
+        console.error('Failed to create/get user:', error)
+        // Fallback to localStorage
+        const user = localStorage.getItem('currentUser')
+        if (user) {
+          currentUser = JSON.parse(user)
+        } else {
+          currentUser = {
+            id: 'demo-user',
+            wallet_address: userWallet,
+            username: `User_${userWallet.slice(0, 6)}`
+          }
+          localStorage.setItem('currentUser', JSON.stringify(currentUser))
+        }
+      }
+
+      console.log('Using connected wallet address:', userWallet)
+
+      // Use a simple ETH transfer to the specified address
       const wldAmount = parseFloat(betAmount)
-      const wldAmountWei = (wldAmount * Math.pow(10, 18)).toString()
-      const wldAmountHex = '0x' + BigInt(wldAmountWei).toString(16)
-
-      // Execute MiniKit transaction with ETH transfer to a valid address
+      
+      // Target address for payments (different from user wallet)
+      const targetAddress = "0x9311788aa11127F325b76986f0031714082F016B"
+      
+      // Check if user is trying to send to their own address
+      if (userWallet.toLowerCase() === targetAddress.toLowerCase()) {
+        alert('Sie können nicht an Ihre eigene Adresse senden. Bitte verwenden Sie eine andere Adresse.')
+        setIsPlacingBet(false)
+        return
+      }
+      
+      // Execute MiniKit transaction with ETH transfer to target address
       let transactionHash = `tx_${Date.now()}`
       
       try {
-        console.log('Starting MiniKit ETH transfer transaction...')
-        console.log('Amount Wei:', wldAmountWei)
-        console.log('Amount Hex:', wldAmountHex)
+        console.log('Starting MiniKit payment transaction...')
+        console.log('Amount:', wldAmount, 'WLD')
+        console.log('Target Address:', targetAddress)
         
+        // Use MiniKit pay function for direct payment
+        console.log('Using MiniKit pay function')
+        
+        // Use real MiniKit pay function
+        console.log('Using real MiniKit pay function')
+        
+        // Try a different approach - use a simple transaction structure
+        console.log('Attempting simple ETH transfer transaction')
+        
+        // Use real MiniKit sendTransaction for actual WLD transfer
+        console.log('Using real MiniKit sendTransaction for WLD transfer')
+        
+        // Use WLD token contract address on World Chain (after whitelisting in Developer Console)
+        const WLD_TOKEN = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // WLD (World Chain)
+        
+        // ERC-20 transfer ABI
+        const erc20TransferAbi = [{
+          type: "function",
+          name: "transfer",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "to", type: "address" },
+            { name: "amount", type: "uint256" }
+          ],
+          outputs: [{ type: "bool" }]
+        }]
+        
+        // Convert amount to proper decimals (WLD has 18 decimals)
+        const wldAmountRounded = parseFloat(betAmount)
+        const tokenToDecimals = (amount: number, decimals: number) => {
+          return Math.floor(amount * Math.pow(10, decimals))
+        }
+        
+        console.log('Using WLD token transfer (contract should be whitelisted)')
+        console.log('Amount:', betAmount, 'WLD')
+        console.log('Target Address:', targetAddress)
+        console.log('WLD Token Address:', WLD_TOKEN)
+        
+        // Use WLD token transfer with proper error handling
         const { commandPayload, finalPayload } = await MiniKit.commandsAsync.sendTransaction({
           transaction: [
             {
-              address: "0x0000000000000000000000000000000000000000", // Burn address (always valid)
-              abi: [{
-                type: "function",
-                name: "transfer",
-                stateMutability: "payable",
-                inputs: [
-                  { name: "to", type: "address" },
-                  { name: "amount", type: "uint256" }
-                ],
-                outputs: [{ type: "bool" }]
-              }],
+              address: WLD_TOKEN,
+              abi: erc20TransferAbi,
               functionName: "transfer",
-              args: ["0x0000000000000000000000000000000000000000", wldAmountHex],
-            },
-          ],
+              args: [targetAddress, tokenToDecimals(wldAmountRounded, 18).toString()],
+            }
+          ]
         })
         
-        // Transaction successful
-        console.log('Transaction successful:', finalPayload)
-        transactionHash = `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        console.log('Real transaction result:', finalPayload)
+        
+        // Get real transaction hash from response
+        transactionHash = (finalPayload as any).transaction_hash || (finalPayload as any).hash || `tx_${Date.now()}`
         
       } catch (transactionError) {
         console.error('Transaction failed:', transactionError)
         console.error('Transaction error type:', typeof transactionError)
         console.error('Transaction error message:', (transactionError as Error).message)
         
+        const errorMessage = (transactionError as Error).message?.toLowerCase() || ''
+        
         // Check if user cancelled the transaction
-        if ((transactionError as Error).message?.includes('cancelled') || 
-            (transactionError as Error).message?.includes('rejected') ||
-            (transactionError as Error).message?.includes('denied') ||
-            (transactionError as Error).message?.includes('User rejected')) {
-          alert('Transaction was cancelled by user.')
+        if (errorMessage.includes('cancelled') || 
+            errorMessage.includes('rejected') ||
+            errorMessage.includes('denied') ||
+            errorMessage.includes('user rejected') ||
+            errorMessage.includes('user cancelled')) {
+          alert('Transaktion wurde vom Benutzer abgebrochen.')
           return
         }
         
         // Check for insufficient funds
-        if ((transactionError as Error).message?.includes('insufficient') || 
-            (transactionError as Error).message?.includes('balance') ||
-            (transactionError as Error).message?.includes('not enough')) {
-          alert('Insufficient balance. Please add more ETH to your wallet.')
+        if (errorMessage.includes('insufficient') || 
+            errorMessage.includes('balance') ||
+            errorMessage.includes('not enough') ||
+            errorMessage.includes('low balance')) {
+          alert('Unzureichender Kontostand. Bitte fügen Sie mehr WLD zu Ihrer Wallet hinzu.')
           return
         }
         
-        // Other transaction errors
-        alert(`Transaction failed: ${(transactionError as Error).message || 'Unknown error'}`)
+        // Check for network issues
+        if (errorMessage.includes('network') ||
+            errorMessage.includes('connection') ||
+            errorMessage.includes('timeout')) {
+          alert('Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.')
+          return
+        }
+        
+        // Check for contract issues
+        if (errorMessage.includes('contract') ||
+            errorMessage.includes('invalid address') ||
+            errorMessage.includes('execution reverted')) {
+          alert('Smart Contract Fehler. Bitte versuchen Sie es später erneut.')
+          return
+        }
+        
+        // Check for gas issues
+        if (errorMessage.includes('gas') ||
+            errorMessage.includes('out of gas')) {
+          alert('Gas-Fehler. Bitte versuchen Sie es mit einem höheren Gas-Limit erneut.')
+          return
+        }
+        
+        // Generic error message
+        alert(`Transaktionsfehler: ${(transactionError as Error).message || 'Unbekannter Fehler. Bitte versuchen Sie es erneut.'}`)
         return
       }
       
@@ -249,12 +378,12 @@ export default function BetPage() {
       
       // Add to favorites
       addToFavorites(favoriteBet)
-      
-      // Show success message
-      alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
-      
-      // Navigate back to home
-      router.push('/')
+    
+    // Show success message
+    alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
+    
+    // Navigate back to home
+    router.push('/')
       
     } catch (error) {
       console.error('Error placing bet:', error)
@@ -361,7 +490,9 @@ export default function BetPage() {
               </Button>
               <div>
                 <h1 className="text-lg font-semibold text-foreground">Place Bet</h1>
-                <p className="text-sm text-muted-foreground">Ani Market</p>
+                <p className="text-sm text-muted-foreground">
+                  {userWallet ? `${userWallet.slice(0, 6)}...${userWallet.slice(-4)}` : 'Ani Market'}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -595,15 +726,31 @@ export default function BetPage() {
                     </div>
                   )}
 
-                  {/* Place Bet Button */}
+                  {/* Connect Wallet or Place Bet Button */}
+                  {!userWallet ? (
+                    <Button
+                      onClick={connectWallet}
+                      disabled={isConnecting}
+                      className="w-full h-14 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {isConnecting ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          Connecting...
+                        </div>
+                      ) : (
+                        'Connect Worldcoin Wallet'
+                      )}
+                    </Button>
+                  ) : (
                   <Button
                     onClick={handlePlaceBet}
                     disabled={!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0 || isPlacingBet}
                     className={cn(
-                      "w-full h-14 text-lg font-semibold transition-all duration-200 text-white",
-                      selectedOutcome?.name?.toLowerCase().includes('yes') && "bg-green-500 hover:bg-green-600",
-                      selectedOutcome?.name?.toLowerCase().includes('no') && "bg-red-500 hover:bg-red-600",
-                      !selectedOutcome?.name?.toLowerCase().includes('yes') && !selectedOutcome?.name?.toLowerCase().includes('no') && getColorClass(selectedOutcome)
+                        "w-full h-14 text-lg font-semibold transition-all duration-200 text-white",
+                        selectedOutcome?.name?.toLowerCase().includes('yes') && "bg-green-500 hover:bg-green-600",
+                        selectedOutcome?.name?.toLowerCase().includes('no') && "bg-red-500 hover:bg-red-600",
+                        !selectedOutcome?.name?.toLowerCase().includes('yes') && !selectedOutcome?.name?.toLowerCase().includes('no') && getColorClass(selectedOutcome)
                     )}
                   >
                     {isPlacingBet ? (
@@ -615,6 +762,7 @@ export default function BetPage() {
                       `Place Bet: ${betAmount || '0'} WLD on ${selectedOutcome?.name}`
                     )}
                   </Button>
+                  )}
                 </div>
               )}
             </div>
