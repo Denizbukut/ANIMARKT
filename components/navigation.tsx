@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, Info, Menu, Filter, Bookmark, X } from 'lucide-react'
+import { Search, Flag, Info, Menu, Filter, Bookmark, X, Wallet, LogOut } from 'lucide-react'
 import { Category } from '@/types/market'
 import { cn } from '@/lib/utils'
+import { useWallet } from '@/contexts/WalletContext'
 
 interface NavigationProps {
   categories: Category[]
@@ -25,6 +26,7 @@ export function Navigation({
   onFilterChange
 }: NavigationProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const { userWallet, isConnected, disconnectWallet } = useWallet()
 
   return (
     <>
@@ -51,6 +53,39 @@ export function Navigation({
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Wallet Status - Hidden on small screens */}
+              {isConnected && userWallet && (
+                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded-full max-w-[120px]">
+                  <Wallet className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <span className="text-xs text-green-700 dark:text-green-300 font-medium truncate">
+                    {userWallet.slice(0, 4)}...{userWallet.slice(-3)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-3 w-3 p-0 hover:bg-green-200 dark:hover:bg-green-800 flex-shrink-0"
+                    onClick={disconnectWallet}
+                  >
+                    <LogOut className="h-2 w-2 text-green-600 dark:text-green-400" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Mobile Wallet Status - Just icon */}
+              {isConnected && userWallet && (
+                <div className="sm:hidden flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-green-600 dark:text-green-400"
+                    onClick={disconnectWallet}
+                    title={`Connected: ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`}
+                  >
+                    <Wallet className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              
               <Button variant="ghost" size="icon" className="h-7 w-7 hidden md:flex">
                 <Flag className="h-3 w-3" />
               </Button>
@@ -58,7 +93,6 @@ export function Navigation({
               <Button variant="ghost" size="icon" className="h-7 w-7 hidden lg:flex">
                 <Info className="h-3 w-3" />
               </Button>
-              
               
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Menu className="h-3 w-3" />

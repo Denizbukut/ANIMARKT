@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { MarketCard } from '@/components/market-card'
 import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
 import { isFavorite } from '@/lib/utils'
+import { useWallet } from '@/contexts/WalletContext'
 
 // Categories matching the navigation
 const categories = [
@@ -34,11 +36,20 @@ const filterOptions = [
 ]
 
 export default function Home() {
+  const router = useRouter()
+  const { isConnected, userWallet } = useWallet()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [markets, setMarkets] = useState<Market[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Redirect to login if not connected
+  useEffect(() => {
+    if (!isConnected) {
+      router.push('/login')
+    }
+  }, [isConnected, router])
 
   useEffect(() => {
     async function loadMarkets() {

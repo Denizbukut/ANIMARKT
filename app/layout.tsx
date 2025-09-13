@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import ErudaLoader from './eruda-loader'
 import { MiniKitProvider } from '@worldcoin/minikit-js/minikit-provider'
+import { WalletProvider } from '@/contexts/WalletContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -27,7 +28,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <ErudaLoader />
         <MiniKitProvider>
-          {children}
+          <WalletProvider>
+            {children}
+          </WalletProvider>
         </MiniKitProvider>
       </body>
     </html>
