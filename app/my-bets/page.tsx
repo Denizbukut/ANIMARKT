@@ -17,6 +17,8 @@ interface Bet {
   market_title: string
   outcome_name: string
   probability: number
+  transaction_hash?: string
+  isRealTransaction?: boolean
 }
 
 export default function MyBetsPage() {
@@ -54,7 +56,10 @@ export default function MyBetsPage() {
           // Fallback to localStorage if database fails
           const savedBets = localStorage.getItem('userBets')
           if (savedBets) {
-            setBets(JSON.parse(savedBets))
+            const allBets = JSON.parse(savedBets)
+            // Filter to only show real transactions
+            const realBets = allBets.filter((bet: Bet) => bet.isRealTransaction === true)
+            setBets(realBets)
           }
         }
       } catch (error) {
@@ -62,7 +67,10 @@ export default function MyBetsPage() {
         // Fallback to localStorage if API fails
         const savedBets = localStorage.getItem('userBets')
         if (savedBets) {
-          setBets(JSON.parse(savedBets))
+          const allBets = JSON.parse(savedBets)
+          // Filter to only show real transactions
+          const realBets = allBets.filter((bet: Bet) => bet.isRealTransaction === true)
+          setBets(realBets)
         }
       } finally {
         setLoading(false)
@@ -245,6 +253,11 @@ export default function MyBetsPage() {
                       <div className="text-sm text-muted-foreground">
                         Placed on: {new Date(bet.created_at).toLocaleDateString('en-US')} at {new Date(bet.created_at).toLocaleTimeString('en-US')}
                       </div>
+                      {bet.transaction_hash && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          TX: {bet.transaction_hash.slice(0, 10)}...{bet.transaction_hash.slice(-6)}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="text-right">

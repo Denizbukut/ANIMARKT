@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createBet, getBetsByUser, getAllBets, getUserByWallet, createUser } from '@/lib/db'
+import { createBetWithFallback, getBetsByUserWithFallback, getBetsByWalletWithFallback, createUserWithFallback } from '@/lib/bets-storage'
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,19 +7,16 @@ export async function GET(request: NextRequest) {
     const userId = searchParams.get('userId')
     const walletAddress = searchParams.get('walletAddress')
 
+    console.log('Fetching bets for:', { userId, walletAddress })
+
     let bets
 
     if (userId) {
-      bets = await getBetsByUser(userId)
+      bets = await getBetsByUserWithFallback(userId)
     } else if (walletAddress) {
-      // Get or create user by wallet address
-      let user = await getUserByWallet(walletAddress)
-      if (!user) {
-        user = await createUser(walletAddress, 'Demo User')
-      }
-      bets = await getBetsByUser(user.id)
+      bets = await getBetsByWalletWithFallback(walletAddress)
     } else {
-      bets = await getAllBets()
+      bets = []
     }
 
     return NextResponse.json(bets)
@@ -35,16 +32,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, marketId, outcomeId, amount, transactionHash, walletAddress } = body
+    const { userId, marketId, outcomeId, amount, transactionHash, walletAddress, isRealTransaction } = body
+
+    console.log('Creating bet with data:', { userId, marketId, outcomeId, amount, transactionHash, walletAddress, isRealTransaction })
 
     let finalUserId = userId
 
     // If no userId but walletAddress provided, get or create user
     if (!finalUserId && walletAddress) {
-      let user = await getUserByWallet(walletAddress)
-      if (!user) {
-        user = await createUser(walletAddress, 'Demo User')
-      }
+      const user = await createUserWithFallback(walletAddress, 'Demo User')
       finalUserId = user.id
     }
 
@@ -55,8 +51,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const bet = await createBet(finalUserId, marketId, outcomeId, amount, transactionHash)
-
+    const bet = await createBetWithFallback(
+      finalUserId, 
+      marketId, 
+      outcomeId, 
+      amount, 
+      transactionHash, 
+      walletAddress, 
+      isRealTransaction,
+      body.marketTitle,
+      body.outcomeName,
+      body.probability
+    )
+    
+    console.log('Bet created successfully:', bet)
     return NextResponse.json(bet, { status: 201 })
   } catch (error) {
     console.error('Error creating bet:', error)

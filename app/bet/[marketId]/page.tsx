@@ -12,6 +12,7 @@ import { fetchMarketById, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
 import { useWallet } from '@/contexts/WalletContext'
+import { MiniKit } from '@worldcoin/minikit-js'
 
 export default function BetPage() {
   const params = useParams()
@@ -181,47 +182,73 @@ export default function BetPage() {
         console.log('Target Address:', targetAddress)
         console.log('User Wallet:', userWallet)
         
-        // For now, simulate transaction success
-        // In a real implementation, you would use the connected wallet to send the transaction
-        console.log('Simulating transaction success...')
-        
-        // Use WLD token contract address on World Chain
-        const WLD_TOKEN = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // WLD (World Chain)
-        
-        // ERC-20 transfer ABI
-        const erc20TransferAbi = [{
-          type: "function",
-          name: "transfer",
-          stateMutability: "nonpayable",
-          inputs: [
-            { name: "to", type: "address" },
-            { name: "amount", type: "uint256" }
-          ],
-          outputs: [{ type: "bool" }]
-        }]
-        
-        // Convert amount to proper decimals (WLD has 18 decimals)
-        const wldAmountRounded = parseFloat(betAmount)
-        const tokenToDecimals = (amount: number, decimals: number) => {
-          return Math.floor(amount * Math.pow(10, decimals))
+        // Check if MiniKit is available for real transactions
+        if (!MiniKit.isInstalled()) {
+          console.log('MiniKit not available, simulating transaction...')
+          // Simulate transaction success but don't save to bets (no real payment)
+          const finalPayload = {
+            status: 'success',
+            transaction_hash: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          }
+          transactionHash = finalPayload.transaction_hash
+          
+          // Show message that this is a simulation
+          alert(`Simulation: Payment sent! Bet successfully placed: ${betAmount} WLD on "${selectedOutcome.name}"\nNote: This is a simulation - no real transaction was made.`)
+          
+          // Don't save to database or localStorage for simulated transactions
+          setIsPlacingBet(false)
+          setBetAmount('')
+          setSelectedOutcome(null)
+          return
+        } else {
+          console.log('MiniKit available, executing real transaction...')
+          
+          // Use WLD token contract address on World Chain
+          const WLD_TOKEN = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003" // WLD (World Chain)
+          
+          // ERC-20 transfer ABI
+          const erc20TransferAbi = [{
+            type: "function",
+            name: "transfer",
+            stateMutability: "nonpayable",
+            inputs: [
+              { name: "to", type: "address" },
+              { name: "amount", type: "uint256" }
+            ],
+            outputs: [{ type: "bool" }]
+          }]
+          
+          // Convert amount to proper decimals (WLD has 18 decimals)
+          const wldAmountRounded = parseFloat(betAmount)
+          const tokenToDecimals = (amount: number, decimals: number) => {
+            return Math.floor(amount * Math.pow(10, decimals))
+          }
+          
+          console.log('Using WLD token transfer (contract should be whitelisted)')
+          console.log('Amount:', betAmount, 'WLD')
+          console.log('Target Address:', targetAddress)
+          console.log('WLD Token Address:', WLD_TOKEN)
+          
+          // Execute real MiniKit transaction
+          const { commandPayload, finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+            transaction: [
+              {
+                address: WLD_TOKEN,
+                abi: erc20TransferAbi,
+                functionName: "transfer",
+                args: [targetAddress, tokenToDecimals(wldAmountRounded, 18).toString()],
+              }
+            ]
+          })
+          
+          console.log('Real transaction result:', finalPayload)
+          
+          // Get real transaction hash from response
+          transactionHash = (finalPayload as any).transaction_hash || (finalPayload as any).hash || `tx_${Date.now()}`
+          
+          // Mark this as a real transaction (not simulated)
+          console.log('Real transaction completed:', transactionHash)
         }
-        
-        console.log('Using WLD token transfer (contract should be whitelisted)')
-        console.log('Amount:', betAmount, 'WLD')
-        console.log('Target Address:', targetAddress)
-        console.log('WLD Token Address:', WLD_TOKEN)
-        
-        // Simulate transaction success for now
-        // In a real implementation, you would use the wallet's sendTransaction method
-        const finalPayload = {
-          status: 'success',
-          transaction_hash: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        }
-        
-        console.log('Real transaction result:', finalPayload)
-        
-        // Get real transaction hash from response
-        transactionHash = (finalPayload as any).transaction_hash || (finalPayload as any).hash || `tx_${Date.now()}`
         
       } catch (transactionError) {
         console.error('Transaction failed:', transactionError)
@@ -277,6 +304,15 @@ export default function BetPage() {
         return
       }
       
+      // Only proceed if this is a real transaction (not simulated)
+      if (transactionHash.startsWith('sim_')) {
+        console.log('Skipping bet save for simulated transaction')
+        setIsPlacingBet(false)
+        setBetAmount('')
+        setSelectedOutcome(null)
+        return
+      }
+      
       // Try to save bet to database via API, fallback to localStorage
       let newBet
       try {
@@ -291,7 +327,11 @@ export default function BetPage() {
             outcomeId: selectedOutcome.id,
             amount: parseFloat(betAmount),
             walletAddress: currentUser.walletAddress,
-            transactionHash: transactionHash
+            transactionHash: transactionHash,
+            isRealTransaction: true, // Mark as real transaction
+            marketTitle: market.title,
+            outcomeName: selectedOutcome.name,
+            probability: selectedOutcome.probability
           }),
         })
         
@@ -313,7 +353,9 @@ export default function BetPage() {
           created_at: new Date().toISOString(),
           market_title: market.title,
           outcome_name: selectedOutcome.name,
-          probability: selectedOutcome.probability
+          probability: selectedOutcome.probability,
+          transaction_hash: transactionHash,
+          isRealTransaction: true // Mark as real transaction
         }
         
         // Save to localStorage
@@ -338,7 +380,7 @@ export default function BetPage() {
       addToFavorites(favoriteBet)
     
     // Show success message
-    alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
+    alert(`Payment sent! Bet successfully placed: ${betAmount} WLD on "${selectedOutcome.name}"\nTransaction: ${transactionHash}`)
     
     // Navigate back to home
     router.push('/')

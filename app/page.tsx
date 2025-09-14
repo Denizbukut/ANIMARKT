@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { MarketCard } from '@/components/market-card'
-import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
 import { isFavorite } from '@/lib/utils'
@@ -56,16 +55,19 @@ export default function Home() {
       try {
         setLoading(true)
         
-        // Load Polymarket events
-        const polymarketEvents = await fetchPolymarketEvents()
-        const convertedMarkets = polymarketEvents.map(convertPolymarketToMarket)
+        // Load markets from database
+        const response = await fetch('/api/markets')
+        if (!response.ok) {
+          throw new Error('Failed to fetch markets')
+        }
+        const dbMarkets = await response.json()
         
-        // Load custom bets
+        // Load custom bets from database
         const customBets = await getCustomBets()
         const convertedCustomBets = customBets.map(convertCustomBetToMarket)
         
-        // Combine both types of markets
-        const allMarkets = [...convertedCustomBets, ...convertedMarkets]
+        // Combine database markets and custom bets
+        const allMarkets = [...convertedCustomBets, ...dbMarkets]
         
         setMarkets(allMarkets)
         setError(null)
@@ -164,7 +166,7 @@ export default function Home() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading real market data from Polymarket...</p>
+              <p className="text-muted-foreground">Loading markets from database...</p>
             </div>
           </div>
         </div>

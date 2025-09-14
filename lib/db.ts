@@ -1,9 +1,11 @@
 import { Pool } from 'pg'
 
 // Database connection
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set')
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 })
 
 // Types matching your database schema
@@ -42,6 +44,9 @@ export interface Bet {
   transaction_hash: string | null
   created_at: Date
   updated_at: Date
+  market_title?: string
+  outcome_name?: string
+  probability?: number
 }
 
 export interface CustomBet {
@@ -125,14 +130,17 @@ export async function createBet(
   marketId: string,
   outcomeId: string,
   amount: number,
-  transactionHash?: string
+  transactionHash?: string,
+  marketTitle?: string,
+  outcomeName?: string,
+  probability?: number
 ): Promise<Bet> {
   const query = `
-    INSERT INTO bets (user_id, market_id, outcome_id, amount, transaction_hash)
-    VALUES ($1, $2, $3, $4, $5)
+    INSERT INTO bets (user_id, market_id, outcome_id, amount, transaction_hash, market_title, outcome_name, probability, is_real_transaction)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
     RETURNING *
   `
-  const values = [userId, marketId, outcomeId, amount, transactionHash]
+  const values = [userId, marketId, outcomeId, amount, transactionHash, marketTitle, outcomeName, probability]
   const result = await pool.query(query, values)
   return result.rows[0]
 }
@@ -141,8 +149,8 @@ export async function getBetsByUser(userId: string): Promise<Bet[]> {
   const query = `
     SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
     FROM bets b
-    JOIN markets m ON b.market_id = m.id
-    JOIN market_outcomes mo ON b.outcome_id = mo.id
+    LEFT JOIN markets m ON b.market_id = m.id
+    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
     WHERE b.user_id = $1
     ORDER BY b.created_at DESC
   `
@@ -154,8 +162,8 @@ export async function getAllBets(): Promise<Bet[]> {
   const query = `
     SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
     FROM bets b
-    JOIN markets m ON b.market_id = m.id
-    JOIN market_outcomes mo ON b.outcome_id = mo.id
+    LEFT JOIN markets m ON b.market_id = m.id
+    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
     ORDER BY b.created_at DESC
   `
   const result = await pool.query(query)
@@ -177,12 +185,26 @@ export async function getBetById(betId: string): Promise<Bet | null> {
   const query = `
     SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
     FROM bets b
-    JOIN markets m ON b.market_id = m.id
-    JOIN market_outcomes mo ON b.outcome_id = mo.id
+    LEFT JOIN markets m ON b.market_id = m.id
+    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
     WHERE b.id = $1
   `
   const result = await pool.query(query, [betId])
   return result.rows[0] || null
+}
+
+export async function getBetsByWallet(walletAddress: string): Promise<Bet[]> {
+  const query = `
+    SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
+    FROM bets b
+    JOIN users u ON b.user_id = u.id
+    LEFT JOIN markets m ON b.market_id = m.id
+    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
+    WHERE u.wallet_address = $1
+    ORDER BY b.created_at DESC
+  `
+  const result = await pool.query(query, [walletAddress])
+  return result.rows
 }
 
 // Market functions
@@ -347,6 +369,49 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   `
   const result = await pool.query(query, [userId])
   return result.rows
+}
+
+export async function getAllMarkets(): Promise<Market[]> {
+  try {
+    console.log('getAllMarkets: Starting database query...')
+    
+    // First, let's check if the markets table exists and has data
+    const checkQuery = `SELECT COUNT(*) as count FROM markets`
+    console.log('getAllMarkets: Checking markets table...')
+    const checkResult = await pool.query(checkQuery)
+    console.log('getAllMarkets: Markets table has', checkResult.rows[0].count, 'rows')
+    
+    // If no markets, return empty array
+    if (parseInt(checkResult.rows[0].count) === 0) {
+      console.log('getAllMarkets: No markets found, returning empty array')
+      return []
+    }
+    
+    const query = `
+      SELECT 
+        m.id,
+        m.title,
+        m.description,
+        m.category,
+        m.end_time,
+        m.created_at,
+        COUNT(mo.id) as outcome_count
+      FROM markets m
+      LEFT JOIN market_outcomes mo ON m.id = mo.market_id
+      WHERE m.end_time IS NULL OR m.end_time > NOW()
+      GROUP BY m.id, m.title, m.description, m.category, m.end_time, m.created_at
+      ORDER BY m.created_at DESC
+    `
+    
+    console.log('getAllMarkets: Executing main query...')
+    const result = await pool.query(query)
+    console.log('getAllMarkets: Query successful, found', result.rows.length, 'markets')
+    
+    return result.rows
+  } catch (error) {
+    console.error('getAllMarkets: Database error:', error)
+    throw error
+  }
 }
 
 export default pool

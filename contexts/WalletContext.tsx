@@ -53,6 +53,28 @@ export function WalletProvider({ children }: WalletProviderProps) {
         // Save to localStorage for persistence
         localStorage.setItem('user-wallet', walletAddress)
         
+        // Create user in database when wallet connects
+        try {
+          const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              walletAddress: walletAddress,
+              username: 'Demo User'
+            })
+          })
+          
+          if (response.ok) {
+            console.log('User created in database:', walletAddress)
+          } else {
+            console.log('User creation failed, will use fallback')
+          }
+        } catch (error) {
+          console.log('User creation error, will use fallback:', error)
+        }
+        
         console.log('Connected wallet:', walletAddress)
       } else {
         console.error('Authentication failed:', finalPayload)
