@@ -9,14 +9,12 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching bets for:', { userId, walletAddress })
 
-    let bets
+    let bets: any[] = []
 
     if (userId) {
       bets = await getBetsByUserWithFallback(userId)
     } else if (walletAddress) {
       bets = await getBetsByWalletWithFallback(walletAddress)
-    } else {
-      bets = []
     }
 
     return NextResponse.json(bets)
