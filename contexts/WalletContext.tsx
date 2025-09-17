@@ -29,6 +29,10 @@ export function WalletProvider({ children }: WalletProviderProps) {
     if (savedWallet) {
       setUserWallet(savedWallet)
       setIsConnected(true)
+      console.log('Wallet loaded from localStorage:', savedWallet)
+    } else {
+      console.log('No wallet found in localStorage')
+      setIsConnected(false)
     }
   }, [])
 

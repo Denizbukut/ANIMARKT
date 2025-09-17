@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useWallet } from '@/contexts/WalletContext'
 
 interface Bet {
   id: string
@@ -23,62 +24,105 @@ interface Bet {
 
 export default function MyBetsPage() {
   const router = useRouter()
+  const { userWallet, isConnected } = useWallet()
   const [bets, setBets] = useState<Bet[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [walletChecked, setWalletChecked] = useState(false)
+
+  // Check wallet connection after component mounts
+  useEffect(() => {
+    const checkWallet = () => {
+      const savedWallet = localStorage.getItem('user-wallet')
+      console.log('Checking wallet in My Bets:', { savedWallet, isConnected, userWallet })
+      
+      if (!savedWallet && !isConnected) {
+        console.log('No wallet found, redirecting to login')
+        router.push('/login')
+      }
+      setWalletChecked(true)
+    }
+
+    // Small delay to ensure wallet context is loaded
+    setTimeout(checkWallet, 100)
+  }, [isConnected, userWallet, router])
 
   useEffect(() => {
     async function loadUserAndBets() {
       try {
-        // Load current user from localStorage
-        const user = localStorage.getItem('currentUser')
-        let currentUser
-        if (user) {
-          currentUser = JSON.parse(user)
-        } else {
-          // Create demo user if none exists
-          currentUser = {
-            id: 'demo_user',
-            username: 'Demo User',
-            walletAddress: '0x123...abc'
-          }
-          localStorage.setItem('currentUser', JSON.stringify(currentUser))
+        // Wait for wallet to be loaded
+        if (!userWallet) {
+          console.log('Waiting for wallet to load...')
+          setLoading(false)
+          return
+        }
+
+        // Create user object from connected wallet
+        const currentUser = {
+          id: `user_${userWallet.slice(2, 8)}`, // Use wallet address for ID
+          username: `User ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`,
+          walletAddress: userWallet
         }
         setCurrentUser(currentUser)
 
-        // Load bets from database via API
-        const response = await fetch(`/api/bets?walletAddress=${currentUser.walletAddress}`)
-        if (response.ok) {
-          const userBets = await response.json()
-          setBets(userBets)
-        } else {
-          console.error('Failed to load bets from database')
-          // Fallback to localStorage if database fails
-          const savedBets = localStorage.getItem('userBets')
-          if (savedBets) {
-            const allBets = JSON.parse(savedBets)
-            // Filter to only show real transactions
-            const realBets = allBets.filter((bet: Bet) => bet.isRealTransaction === true)
-            setBets(realBets)
-          }
+        console.log('Loading bets for wallet:', userWallet)
+
+        // First try to load from localStorage (since DB connection has issues)
+        // Check both possible localStorage keys
+        let savedBets = localStorage.getItem('anitmarket_bets')
+        if (!savedBets) {
+          savedBets = localStorage.getItem('userBets')
         }
-      } catch (error) {
-        console.error('Error loading user and bets:', error)
-        // Fallback to localStorage if API fails
-        const savedBets = localStorage.getItem('userBets')
+        
         if (savedBets) {
           const allBets = JSON.parse(savedBets)
-          // Filter to only show real transactions
-          const realBets = allBets.filter((bet: Bet) => bet.isRealTransaction === true)
+          console.log('All saved bets:', allBets)
+          
+          // Filter to only show real transactions for this wallet
+          const realBets = allBets.filter((bet: any) => {
+            console.log('Checking bet:', bet)
+            console.log('Bet user_id:', bet.user_id)
+            console.log('Current user id:', currentUser.id)
+            console.log('Wallet slice:', userWallet.slice(2, 8))
+            
+            return bet.isRealTransaction === true && 
+                   (bet.user_id === currentUser.id || 
+                    (bet.user_id && bet.user_id.includes && bet.user_id.includes(userWallet.slice(2, 8))))
+          })
+          console.log('Real bets for this wallet:', realBets)
           setBets(realBets)
+        } else {
+          console.log('No saved bets found in localStorage (checked both anitmarket_bets and userBets)')
+          setBets([])
         }
+
+        // Also try API (but don't rely on it due to DB connection issues)
+        try {
+          const response = await fetch(`/api/bets?walletAddress=${userWallet}`)
+          if (response.ok) {
+            const userBets = await response.json()
+            console.log('Bets from API:', userBets)
+            if (userBets.length > 0) {
+              setBets(userBets)
+            }
+          }
+        } catch (apiError) {
+          console.log('API failed, using localStorage data')
+        }
+
+      } catch (error) {
+        console.error('Error loading user and bets:', error)
+        setBets([])
       } finally {
         setLoading(false)
       }
     }
 
-    loadUserAndBets()
-  }, [])
+    // Only load bets after wallet is checked
+    if (walletChecked) {
+      loadUserAndBets()
+    }
+  }, [userWallet, isConnected, router, walletChecked])
 
   const getStatusIcon = (status: string) => {
     switch (status) {

@@ -1,5 +1,21 @@
 import { Pool } from 'pg'
 
+// Define Market interface locally to avoid import issues
+interface DatabaseMarket {
+  id: string
+  title: string
+  description?: string
+  category: string
+  volume: number
+  outcomes: Array<{
+    id: string
+    name: string
+    probability: number
+    color?: string
+  }>
+  endTime?: string
+}
+
 // Database connection
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set')
 
@@ -371,7 +387,7 @@ export async function getUserFavorites(userId: string): Promise<Favorite[]> {
   return result.rows
 }
 
-export async function getAllMarkets(): Promise<Market[]> {
+export async function getAllMarkets(): Promise<DatabaseMarket[]> {
   try {
     console.log('getAllMarkets: Starting database query...')
     
@@ -387,6 +403,7 @@ export async function getAllMarkets(): Promise<Market[]> {
       return []
     }
     
+    // Get all markets with their outcomes
     const query = `
       SELECT 
         m.id,
@@ -395,19 +412,52 @@ export async function getAllMarkets(): Promise<Market[]> {
         m.category,
         m.end_time,
         m.created_at,
-        COUNT(mo.id) as outcome_count
+        mo.id as outcome_id,
+        mo.name as outcome_name,
+        mo.probability as outcome_probability,
+        mo.color as outcome_color
       FROM markets m
       LEFT JOIN market_outcomes mo ON m.id = mo.market_id
       WHERE m.end_time IS NULL OR m.end_time > NOW()
-      GROUP BY m.id, m.title, m.description, m.category, m.end_time, m.created_at
-      ORDER BY m.created_at DESC
+      ORDER BY m.created_at DESC, mo.created_at ASC
     `
     
     console.log('getAllMarkets: Executing main query...')
     const result = await pool.query(query)
-    console.log('getAllMarkets: Query successful, found', result.rows.length, 'markets')
+    console.log('getAllMarkets: Query successful, found', result.rows.length, 'rows')
     
-    return result.rows
+    // Group outcomes by market
+    const marketsMap = new Map<string, DatabaseMarket>()
+    
+    for (const row of result.rows) {
+      if (!marketsMap.has(row.id)) {
+        marketsMap.set(row.id, {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          category: row.category || 'General',
+          volume: 0, // Default volume
+          outcomes: [],
+          endTime: row.end_time ? new Date(row.end_time).toLocaleString() : undefined
+        })
+      }
+      
+      // Add outcome if it exists
+      if (row.outcome_id) {
+        const market = marketsMap.get(row.id)!
+        market.outcomes.push({
+          id: row.outcome_id,
+          name: row.outcome_name,
+          probability: parseFloat(row.outcome_probability) || 0,
+          color: row.outcome_color
+        })
+      }
+    }
+    
+    const markets = Array.from(marketsMap.values())
+    console.log('getAllMarkets: Converted to', markets.length, 'markets with outcomes')
+    
+    return markets
   } catch (error) {
     console.error('getAllMarkets: Database error:', error)
     throw error
