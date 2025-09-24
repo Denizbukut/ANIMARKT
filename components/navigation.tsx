@@ -3,17 +3,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Flag, Info, Menu, Heart, Filter, Bookmark, X, CreditCard } from 'lucide-react'
-import { FavoritesModal } from './favorites-modal'
-import { PaymentHistoryModal } from './payment-history-modal'
+import { Search, Flag, Info, Menu, Filter, Bookmark, X, Wallet, LogOut } from 'lucide-react'
 import { Category } from '@/types/market'
 import { cn } from '@/lib/utils'
+import { useWallet } from '@/contexts/WalletContext'
 
 interface NavigationProps {
   categories: Category[]
   selectedCategory: string
   onCategoryChange: (categoryId: string) => void
-  onFavoritesClick?: () => void
   filterOptions: any[]
   selectedFilter: string
   onFilterChange: (filterId: string) => void
@@ -23,14 +21,12 @@ export function Navigation({
   categories, 
   selectedCategory, 
   onCategoryChange,
-  onFavoritesClick,
   filterOptions,
   selectedFilter,
   onFilterChange
 }: NavigationProps) {
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [isPaymentHistoryOpen, setIsPaymentHistoryOpen] = useState(false)
+  const { userWallet, isConnected, disconnectWallet } = useWallet()
 
   return (
     <>
@@ -38,24 +34,58 @@ export function Navigation({
         <div className="container mx-auto px-4">
           {/* Top row - Logo, Search, Actions */}
           <div className="flex items-center justify-between h-12">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-primary rounded-lg flex items-center justify-center">
-                  <span className="text-primary-foreground font-bold text-sm">A</span>
-                </div>
-                <span className="font-bold text-lg text-foreground hidden sm:block">Ani Market</span>
-              </div>
-              
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex items-center gap-3">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search markets"
-                  className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 h-8 text-sm"
+                  className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 h-8 text-sm w-48"
                 />
               </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 px-4 text-sm"
+                  onClick={() => window.location.href = '/my-bets'}
+                >
+                  My Bets
+                </Button>
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Wallet Status - Hidden on small screens */}
+              {isConnected && userWallet && (
+                <div className="hidden sm:flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 rounded-full max-w-[120px]">
+                  <Wallet className="h-3 w-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <span className="text-xs text-green-700 dark:text-green-300 font-medium truncate">
+                    {userWallet.slice(0, 4)}...{userWallet.slice(-3)}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-3 w-3 p-0 hover:bg-green-200 dark:hover:bg-green-800 flex-shrink-0"
+                    onClick={disconnectWallet}
+                  >
+                    <LogOut className="h-2 w-2 text-green-600 dark:text-green-400" />
+                  </Button>
+                </div>
+              )}
+              
+              {/* Mobile Wallet Status - Just icon */}
+              {isConnected && userWallet && (
+                <div className="sm:hidden flex items-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-green-600 dark:text-green-400"
+                    onClick={disconnectWallet}
+                    title={`Connected: ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`}
+                  >
+                    <Wallet className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+              
               <Button variant="ghost" size="icon" className="h-7 w-7 hidden md:flex">
                 <Flag className="h-3 w-3" />
               </Button>
@@ -63,25 +93,6 @@ export function Navigation({
               <Button variant="ghost" size="icon" className="h-7 w-7 hidden lg:flex">
                 <Info className="h-3 w-3" />
               </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7"
-                onClick={() => setIsFavoritesOpen(true)}
-              >
-                <Heart className="h-3 w-3" />
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-7 w-7"
-                onClick={() => setIsPaymentHistoryOpen(true)}
-              >
-                <CreditCard className="h-3 w-3" />
-              </Button>
-              
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Menu className="h-3 w-3" />
               </Button>
@@ -92,7 +103,20 @@ export function Navigation({
           <div className="flex items-center gap-2 py-2 border-t border-border/50">
             {/* Categories */}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide flex-1">
-              {categories.map((category) => (
+              {[
+                { id: 'all', name: 'All Markets' },
+                { id: 'politics', name: 'Politics' },
+                { id: 'sports', name: 'Sports' },
+                { id: 'crypto', name: 'Crypto' },
+                { id: 'geopolitics', name: 'Geopolitics' },
+                { id: 'tech', name: 'Tech' },
+                { id: 'culture', name: 'Culture' },
+                { id: 'world', name: 'World' },
+                { id: 'economy', name: 'Economy' },
+                { id: 'trump', name: 'Trump' },
+                { id: 'elections', name: 'Elections' },
+                { id: 'mentions', name: 'Mentions' }
+              ].map((category) => (
                 <Button
                   key={category.id}
                   variant={selectedCategory === category.id ? "default" : "ghost"}
@@ -123,17 +147,7 @@ export function Navigation({
         </div>
       </nav>
 
-      {/* Favorites Modal */}
-      <FavoritesModal 
-        isOpen={isFavoritesOpen} 
-        onClose={() => setIsFavoritesOpen(false)} 
-      />
 
-      {/* Payment History Modal */}
-      <PaymentHistoryModal 
-        isOpen={isPaymentHistoryOpen} 
-        onClose={() => setIsPaymentHistoryOpen(false)} 
-      />
 
       {/* Filter Modal */}
       {isFilterOpen && (

@@ -1,29 +1,33 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Navigation } from '@/components/navigation'
 import { MarketCard } from '@/components/market-card'
-import { FavoritesModal } from '@/components/favorites-modal'
-import { fetchPolymarketEvents, convertPolymarketToMarket } from '@/lib/api'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { Market } from '@/types/market'
+import { isFavorite } from '@/lib/utils'
+import { useWallet } from '@/contexts/WalletContext'
 
-// Categories based on real Polymarket data
+// Categories matching the navigation
 const categories = [
   { id: 'all', name: 'All Markets' },
-  { id: 'Politics', name: 'Politics' },
-  { id: 'Crypto', name: 'Crypto' },
-  { id: 'Tech', name: 'Tech' },
-  { id: 'Sports', name: 'Sports' },
-  { id: 'Geopolitics', name: 'Geopolitics' },
-  { id: 'Culture', name: 'Culture' },
-  { id: 'World', name: 'World' },
-  { id: 'Economy', name: 'Economy' },
-  { id: 'Trump', name: 'Trump' }
+  { id: 'politics', name: 'Politics' },
+  { id: 'sports', name: 'Sports' },
+  { id: 'crypto', name: 'Crypto' },
+  { id: 'geopolitics', name: 'Geopolitics' },
+  { id: 'tech', name: 'Tech' },
+  { id: 'culture', name: 'Culture' },
+  { id: 'world', name: 'World' },
+  { id: 'economy', name: 'Economy' },
+  { id: 'trump', name: 'Trump' },
+  { id: 'elections', name: 'Elections' },
+  { id: 'mentions', name: 'Mentions' }
 ]
 
 const filterOptions = [
   { id: 'all', name: 'All' },
+  { id: 'favorites', name: 'Favorites' },
   { id: 'trending', name: 'Trending' },
   { id: 'ending-soon', name: 'Ending Soon' },
   { id: 'high-volume', name: 'High Volume' },
@@ -31,28 +35,39 @@ const filterOptions = [
 ]
 
 export default function Home() {
+  const router = useRouter()
+  const { isConnected, userWallet } = useWallet()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedFilter, setSelectedFilter] = useState('all')
-  const [isFavoritesOpen, setIsFavoritesOpen] = useState(false)
   const [markets, setMarkets] = useState<Market[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Redirect to login if not connected
+  useEffect(() => {
+    if (!isConnected) {
+      router.push('/login')
+    }
+  }, [isConnected, router])
 
   useEffect(() => {
     async function loadMarkets() {
       try {
         setLoading(true)
         
-        // Load Polymarket events
-        const polymarketEvents = await fetchPolymarketEvents()
-        const convertedMarkets = polymarketEvents.map(convertPolymarketToMarket)
+        // Load markets from database
+        const response = await fetch('/api/markets')
+        if (!response.ok) {
+          throw new Error('Failed to fetch markets')
+        }
+        const dbMarkets = await response.json()
         
-        // Load custom bets
+        // Load custom bets from database
         const customBets = await getCustomBets()
         const convertedCustomBets = customBets.map(convertCustomBetToMarket)
         
-        // Combine both types of markets
-        const allMarkets = [...convertedCustomBets, ...convertedMarkets]
+        // Combine database markets and custom bets
+        const allMarkets = [...convertedCustomBets, ...dbMarkets]
         
         setMarkets(allMarkets)
         setError(null)
@@ -75,13 +90,13 @@ export default function Home() {
     setSelectedFilter(filterId)
   }
 
-  const handleFavoritesClick = () => {
-    setIsFavoritesOpen(true)
-  }
 
   // Filter markets based on selected category and filter
   const filteredMarkets = markets.filter(market => {
-    const categoryMatch = selectedCategory === 'all' || market.category === selectedCategory
+    // Category filtering - check both category and subcategory
+    const categoryMatch = selectedCategory === 'all' || 
+      market.category?.toLowerCase() === selectedCategory.toLowerCase() ||
+      market.subcategory?.toLowerCase() === selectedCategory.toLowerCase()
     
     let filterMatch = true
     switch (selectedFilter) {
@@ -103,6 +118,10 @@ export default function Home() {
       case 'live':
         // Live markets
         filterMatch = market.isLive === true
+        break
+      case 'favorites':
+        // Favorite markets
+        filterMatch = isFavorite(`market-${market.id}`)
         break
       default:
         filterMatch = true
@@ -139,7 +158,6 @@ export default function Home() {
           categories={categories} 
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
-          onFavoritesClick={handleFavoritesClick}
           filterOptions={filterOptions}
           selectedFilter={selectedFilter}
           onFilterChange={handleFilterChange}
@@ -148,7 +166,7 @@ export default function Home() {
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading real market data from Polymarket...</p>
+              <p className="text-muted-foreground">Loading markets from database...</p>
             </div>
           </div>
         </div>
@@ -163,7 +181,6 @@ export default function Home() {
           categories={categories} 
           selectedCategory={selectedCategory} 
           onCategoryChange={handleCategoryChange}
-          onFavoritesClick={handleFavoritesClick}
           filterOptions={filterOptions}
           selectedFilter={selectedFilter}
           onFilterChange={handleFilterChange}
@@ -191,7 +208,6 @@ export default function Home() {
         categories={categories} 
         selectedCategory={selectedCategory} 
         onCategoryChange={handleCategoryChange}
-        onFavoritesClick={handleFavoritesClick}
         filterOptions={filterOptions}
         selectedFilter={selectedFilter}
         onFilterChange={handleFilterChange}
@@ -240,11 +256,6 @@ export default function Home() {
         )}
       </main>
 
-      {/* Favorites Modal */}
-      <FavoritesModal 
-        isOpen={isFavoritesOpen} 
-        onClose={() => setIsFavoritesOpen(false)} 
-      />
     </div>
   )
 }

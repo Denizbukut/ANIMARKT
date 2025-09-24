@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import ErudaLoader from './eruda-loader'
+import { MiniKitProvider } from '@worldcoin/minikit-js/minikit-provider'
+import { WalletProvider } from '@/contexts/WalletContext'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -23,7 +26,12 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body className={inter.className}>
-        {children}
+        <ErudaLoader />
+        <MiniKitProvider>
+          <WalletProvider>
+            {children}
+          </WalletProvider>
+        </MiniKitProvider>
       </body>
     </html>
   )

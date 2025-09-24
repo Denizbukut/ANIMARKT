@@ -92,6 +92,34 @@
   }
 }
 
+/* Market Card Navigation Fix */
+.market-card {
+  pointer-events: auto !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  cursor: pointer !important;
+}
+
+.market-card * {
+  pointer-events: auto !important;
+}
+
+/* Force all child elements to allow pointer events */
+.market-card > * {
+  pointer-events: auto !important;
+}
+
+/* Override any conflicting styles */
+.market-card,
+.market-card *,
+.market-card *:before,
+.market-card *:after {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -107,4 +135,87 @@
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/30;
+}
+
+/* Fix for outcome buttons - prevent blue color and override all Tailwind classes */
+.outcome-button {
+  background-color: inherit !important;
+  color: inherit !important;
+  border: inherit !important;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  /* Override all Tailwind button classes */
+  background: inherit !important;
+  border-color: inherit !important;
+  border-width: inherit !important;
+  border-style: inherit !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  font-weight: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  letter-spacing: inherit !important;
+  word-spacing: inherit !important;
+  text-align: inherit !important;
+  vertical-align: inherit !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  height: 4rem !important;
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+.outcome-button:focus,
+.outcome-button:active,
+.outcome-button:hover,
+.outcome-button:visited,
+.outcome-button:link {
+  background-color: inherit !important;
+  background: inherit !important;
+  color: inherit !important;
+  border: inherit !important;
+  border-color: inherit !important;
+  outline: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+  text-decoration: none !important;
+  /* Override all Tailwind focus/active/hover states */
+  --tw-bg-opacity: 1 !important;
+  --tw-text-opacity: 1 !important;
+  --tw-border-opacity: 1 !important;
+  --tw-shadow: none !important;
+  --tw-ring-offset-shadow: none !important;
+  --tw-ring-shadow: none !important;
+}
+
+.outcome-button.selected {
+  background-color: inherit !important;
+  background: inherit !important;
+  color: inherit !important;
+}
+
+/* Override all possible Tailwind button variants */
+.outcome-button.btn,
+.outcome-button[class*="bg-"],
+.outcome-button[class*="text-"],
+.outcome-button[class*="border-"],
+.outcome-button[class*="hover:"],
+.outcome-button[class*="focus:"],
+.outcome-button[class*="active:"] {
+  background-color: inherit !important;
+  background: inherit !important;
+  color: inherit !important;
+  border: inherit !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
