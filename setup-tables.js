@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '.env.local' });
+nge duerequire('dotenv').config({ path: '.env.local' });
 const { Pool } = require('pg');
 
 async function setupTables() {

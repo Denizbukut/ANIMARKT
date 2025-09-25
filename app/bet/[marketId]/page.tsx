@@ -297,34 +297,64 @@ export default function BetPage() {
       
       console.log('Real transaction completed, saving bet...')
       
-      // Save bet directly to localStorage (skip API for now)
-      console.log('Saving bet directly to localStorage...')
-      
-      const newBet = {
-        id: `bet_${Date.now()}`,
-        user_id: currentUser.id,
-        market_id: market.id,
-        outcome_id: selectedOutcome.id,
-        amount: parseFloat(betAmount),
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        market_title: market.title,
-        outcome_name: selectedOutcome.name,
-        probability: selectedOutcome.probability,
-        transaction_hash: transactionHash,
-        isRealTransaction: true // Mark as real transaction
+      // Try to save bet to database via API, fallback to localStorage
+      let newBet
+      try {
+        console.log('Trying to save bet to database...')
+        const response = await fetch('/api/bets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            marketId: market.id,
+            outcomeId: selectedOutcome.id,
+            amount: parseFloat(betAmount),
+            walletAddress: currentUser.wallet_address,
+            transactionHash: transactionHash,
+            isRealTransaction: true,
+            marketTitle: market.title,
+            outcomeName: selectedOutcome.name,
+            probability: selectedOutcome.probability
+          }),
+        })
+        
+        if (response.ok) {
+          newBet = await response.json()
+          console.log('Bet saved to database successfully:', newBet)
+        } else {
+          console.log('Database save failed, using localStorage fallback')
+          throw new Error('API failed')
+        }
+      } catch (error) {
+        console.log('API failed, using localStorage fallback')
+        // Fallback to localStorage
+        newBet = {
+          id: `bet_${Date.now()}`,
+          user_id: currentUser.id,
+          market_id: market.id,
+          outcome_id: selectedOutcome.id,
+          amount: parseFloat(betAmount),
+          status: 'pending',
+          created_at: new Date().toISOString(),
+          market_title: market.title,
+          outcome_name: selectedOutcome.name,
+          probability: selectedOutcome.probability,
+          transaction_hash: transactionHash,
+          isRealTransaction: true
+        }
+        
+        console.log('Saving bet to localStorage fallback:', newBet)
+        
+        // Save to localStorage
+        const existingBets = localStorage.getItem('userBets')
+        const bets = existingBets ? JSON.parse(existingBets) : []
+        bets.push(newBet)
+        localStorage.setItem('userBets', JSON.stringify(bets))
+        
+        console.log('Bet saved to localStorage. Total bets:', bets.length)
       }
-      
-      console.log('Bet object created:', newBet)
-      
-      // Save to localStorage
-      const existingBets = localStorage.getItem('userBets')
-      const bets = existingBets ? JSON.parse(existingBets) : []
-      bets.push(newBet)
-      localStorage.setItem('userBets', JSON.stringify(bets))
-      
-      console.log('Bet saved to localStorage. Total bets:', bets.length)
-      console.log('All bets in localStorage:', bets)
       
       // Create favorite bet for favorites system
       const favoriteBet = {
