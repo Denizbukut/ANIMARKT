@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBetWithFallback, getBetsByUserWithFallback, getBetsByWalletWithFallback, createUserWithFallback } from '@/lib/bets-storage'
-import { pool } from '@/lib/database'
+import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
