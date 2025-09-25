@@ -2,12 +2,12 @@
 
 import { useRouter } from 'next/navigation'
 
-export default function TestBetPage() {
+export default function TestVotePage() {
   const router = useRouter()
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <h1 className="text-2xl font-bold mb-4">Test Bet Page</h1>
+      <h1 className="text-2xl font-bold mb-4">Test Vote Page</h1>
       <p className="text-gray-600 mb-8">If you can see this page, navigation is working!</p>
       
       <button 

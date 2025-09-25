@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { CustomBet } from '@/lib/custom-bets-api'
 import { Button } from '@/components/ui/button'
 import { Calendar, Users, TrendingUp } from 'lucide-react'
@@ -12,9 +12,87 @@ interface CustomBetCardProps {
   onBetClick?: (bet: CustomBet) => void
 }
 
+// Calculate real trader count from localStorage (fallback when DB not available)
+function calculateTraderCountFromLocalStorage(betId: string): number {
+  try {
+    console.log('🔍 Calculating trader count from localStorage for bet:', betId)
+    
+    // Get all votes from localStorage
+    const savedVotes = localStorage.getItem('userVotes') || localStorage.getItem('userBets')
+    if (!savedVotes) {
+      console.log('📊 No votes found in localStorage')
+      return 0
+    }
+    
+    const allVotes = JSON.parse(savedVotes)
+    
+    // Filter votes for this specific bet
+    const betVotes = allVotes.filter((vote: any) => 
+      vote.market_id === betId && vote.isRealTransaction === true
+    )
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(betVotes.map((vote: any) => vote.user_id))
+    const count = uniqueTraders.size
+    
+    console.log(`👥 Bet ${betId}: ${count} traders (from localStorage)`)
+    return count
+  } catch (error) {
+    console.error('❌ Error calculating trader count from localStorage:', error)
+    return 0
+  }
+}
+
+// Calculate real trader count from database (with localStorage fallback)
+async function calculateTraderCount(betId: string): Promise<number> {
+  try {
+    console.log('🔄 Attempting to fetch trader count from database for bet:', betId)
+    
+    // Try database first
+    const response = await fetch(`/api/bets?marketId=${betId}`)
+    if (!response.ok) {
+      console.log('❌ Database API failed, using localStorage fallback')
+      return calculateTraderCountFromLocalStorage(betId)
+    }
+    
+    const betVotes = await response.json()
+    
+    // Filter only real transactions
+    const realVotes = betVotes.filter((vote: any) => vote.is_real_transaction === true)
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(realVotes.map((vote: any) => vote.user_id))
+    const count = uniqueTraders.size
+    
+    console.log(`👥 Bet ${betId}: ${count} traders (from database)`)
+    return count
+  } catch (error) {
+    console.error('❌ Error with database, using localStorage fallback:', error)
+    return calculateTraderCountFromLocalStorage(betId)
+  }
+}
+
 export function CustomBetCard({ bet, onBetClick }: CustomBetCardProps) {
   const daysUntilExpiry = getDaysUntilExpiry(bet.expired_day)
   const isExpired = isBetExpired(bet.expired_day)
+  const [traderCount, setTraderCount] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const loadTraderCount = async () => {
+      try {
+        const count = await calculateTraderCount(bet.id)
+        setTraderCount(count)
+      } catch (error) {
+        console.error('Error loading trader count:', error)
+        setTraderCount(0)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadTraderCount()
+  }, [bet.id])
 
   const getColorClass = (color?: string) => {
     switch (color) {
@@ -90,7 +168,7 @@ export function CustomBetCard({ bet, onBetClick }: CustomBetCardProps) {
             </div>
             <div className="flex items-center gap-1 text-muted-foreground">
               <Users className="h-3 w-3" />
-              <span>{Math.floor(bet.total_volume / 100)} bets</span>
+              <span>{loading ? '...' : `${traderCount} traders`}</span>
             </div>
           </div>
           

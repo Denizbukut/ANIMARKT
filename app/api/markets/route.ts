@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
           { id: 'outcome_1_2', name: 'No', probability: 65.0, color: '#ef4444' }
         ],
         volume: 1000000,
-        isLive: true
+        isLive: false
       },
       {
         id: 'market_2',
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           { id: 'outcome_2_2', name: 'No', probability: 55.0, color: '#ef4444' }
         ],
         volume: 2500000,
-        isLive: true
+        isLive: false
       },
       {
         id: 'market_3',
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           { id: 'outcome_3_2', name: 'No', probability: 75.0, color: '#6b7280' }
         ],
         volume: 800000,
-        isLive: true
+        isLive: false
       }
     ]
     

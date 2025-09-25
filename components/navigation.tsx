@@ -46,9 +46,9 @@ export function Navigation({
                   variant="outline" 
                   size="sm" 
                   className="h-8 px-4 text-sm"
-                  onClick={() => window.location.href = '/my-bets'}
+                  onClick={() => window.location.href = '/my-votes'}
                 >
-                  My Bets
+                  My Votes
                 </Button>
             </div>
 

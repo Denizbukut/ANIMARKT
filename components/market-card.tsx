@@ -163,10 +163,10 @@ export function MarketCard({ market }: MarketCardProps) {
     }
     
     console.log('=== CLICK TRIGGERED ===')
-    console.log('Market card click, navigating to:', `/bet/${market.id}`)
+    console.log('Market card click, navigating to:', `/vote/${market.id}`)
     e.preventDefault()
     e.stopPropagation()
-    window.location.href = `/bet/${market.id}`
+    window.location.href = `/vote/${market.id}`
   }
 
   return (
@@ -268,14 +268,14 @@ export function MarketCard({ market }: MarketCardProps) {
               onMouseDown={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                console.log('Outcome mousedown, navigating to:', `/bet/${market.id}?outcome=${outcome.id}`)
-                window.location.href = `/bet/${market.id}?outcome=${outcome.id}`
+                console.log('Outcome mousedown, navigating to:', `/vote/${market.id}?outcome=${outcome.id}`)
+                window.location.href = `/vote/${market.id}?outcome=${outcome.id}`
               }}
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                console.log('Outcome click, navigating to:', `/bet/${market.id}?outcome=${outcome.id}`)
-                window.location.href = `/bet/${market.id}?outcome=${outcome.id}`
+                console.log('Outcome click, navigating to:', `/vote/${market.id}?outcome=${outcome.id}`)
+                window.location.href = `/vote/${market.id}?outcome=${outcome.id}`
               }}
             >
               {outcome.name} {outcome.probability.toFixed(1)}%

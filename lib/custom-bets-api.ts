@@ -34,10 +34,116 @@ export interface UserCustomBet {
   updated_at: string
 }
 
+// Calculate real volume and trader count from localStorage (fallback when DB not available)
+function calculateRealVolumeAndTradersFromLocalStorage(betId: string): { totalVolume: number, traderCount: number } {
+  try {
+    console.log('🔍 Calculating volume/traders from localStorage for bet:', betId)
+    
+    // Get all votes from localStorage
+    const savedVotes = localStorage.getItem('userVotes') || localStorage.getItem('userBets')
+    if (!savedVotes) {
+      console.log('📊 No votes found in localStorage')
+      return { totalVolume: 0, traderCount: 0 }
+    }
+    
+    const allVotes = JSON.parse(savedVotes)
+    console.log('📊 Total votes in localStorage:', allVotes.length)
+    
+    // Filter votes for this specific bet
+    const betVotes = allVotes.filter((vote: any) => 
+      vote.market_id === betId && vote.isRealTransaction === true
+    )
+    console.log('📊 Votes for this bet:', betVotes.length)
+    
+    // Calculate total volume
+    const totalVolume = betVotes.reduce((sum: number, vote: any) => sum + vote.amount, 0)
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(betVotes.map((vote: any) => vote.user_id))
+    const traderCount = uniqueTraders.size
+    
+    console.log(`📈 Bet ${betId}: Volume=${totalVolume}, Traders=${traderCount}`)
+    return { totalVolume, traderCount }
+  } catch (error) {
+    console.error('❌ Error calculating volume/traders from localStorage:', error)
+    return { totalVolume: 0, traderCount: 0 }
+  }
+}
+
+// Calculate real volume and trader count from database (with localStorage fallback)
+async function calculateRealVolumeAndTraders(betId: string): Promise<{ totalVolume: number, traderCount: number }> {
+  try {
+    console.log('🔄 Attempting to fetch votes from database for bet:', betId)
+    
+    // Try database first
+    const response = await fetch(`/api/bets?marketId=${betId}`)
+    if (!response.ok) {
+      console.log('❌ Database API failed, using localStorage fallback')
+      return calculateRealVolumeAndTradersFromLocalStorage(betId)
+    }
+    
+    const betVotes = await response.json()
+    console.log('✅ Database response received:', betVotes.length, 'votes')
+    
+    // Filter only real transactions
+    const realVotes = betVotes.filter((vote: any) => vote.is_real_transaction === true)
+    
+    // Calculate total volume
+    const totalVolume = realVotes.reduce((sum: number, vote: any) => sum + parseFloat(vote.amount), 0)
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(realVotes.map((vote: any) => vote.user_id))
+    const traderCount = uniqueTraders.size
+    
+    console.log(`📈 Bet ${betId} (from DB): Volume=${totalVolume}, Traders=${traderCount}`)
+    return { totalVolume, traderCount }
+  } catch (error) {
+    console.error('❌ Error with database, using localStorage fallback:', error)
+    return calculateRealVolumeAndTradersFromLocalStorage(betId)
+  }
+}
+
 // API Functions (these would connect to your real database)
 export async function getCustomBets(): Promise<CustomBet[]> {
-  // Here you would call your real API
-  // For now we return mock data + your BTC bet
+  try {
+    console.log('🔄 Attempting to fetch custom bets from database...')
+    // Fetch custom bets from database
+    const response = await fetch('/api/custom-bets')
+    console.log('📡 API Response status:', response.status, response.ok)
+    
+    if (!response.ok) {
+      console.error('❌ Failed to fetch custom bets from database, using fallback')
+      console.log('📊 Using fallback data with volume: 0')
+      return getFallbackCustomBets()
+    }
+    
+    const customBetsFromDB = await response.json()
+    console.log('✅ Custom bets fetched from database:', customBetsFromDB.length, 'bets')
+    
+    // For each custom bet, calculate real volume and trader count
+    const customBetsWithRealData = await Promise.all(
+      customBetsFromDB.map(async (bet: any) => {
+        console.log(`🔍 Calculating volume for bet: ${bet.id}`)
+        const { totalVolume } = await calculateRealVolumeAndTraders(bet.id)
+        console.log(`📈 Bet ${bet.id} volume: ${totalVolume}`)
+        return {
+          ...bet,
+          total_volume: totalVolume
+        }
+      })
+    )
+    
+    console.log('🎉 Returning custom bets with real volume data')
+    return customBetsWithRealData
+  } catch (error) {
+    console.error('❌ Error fetching custom bets from database:', error)
+    console.log('📊 Using fallback data due to error')
+    return getFallbackCustomBets()
+  }
+}
+
+// Fallback function with mock data
+function getFallbackCustomBets(): CustomBet[] {
   return [
     {
       id: 'btc-150k-october-2024',
@@ -110,7 +216,7 @@ export async function getCustomBets(): Promise<CustomBet[]> {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_active: true,
-      total_volume: 5000,
+      total_volume: 0,
       outcomes: [
         {
           id: 'outcome-3',
@@ -360,7 +466,7 @@ export function convertCustomBetToMarket(customBet: CustomBet): any {
     description: customBet.description,
     category: customBet.category || 'Other',
     volume: customBet.total_volume,
-    isLive: !isExpired && daysUntilExpiry <= 7, // Live if ending soon
+    isLive: false, // No live bets
     endTime: customBet.expired_day,
     image: '🎯', // Custom icon for your bets
     subcategory: 'Custom Bet',

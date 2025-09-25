@@ -22,6 +22,7 @@ export interface PolymarketResponse {
   events: PolymarketEvent[]
 }
 
+// DISABLED: Polymarket integration removed
 // Fetch real market data from Polymarket API
 export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
   try {
@@ -54,7 +55,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Geopolitics',
         subcategory: 'International Relations',
-        isLive: true,
+        isLive: false,
         image: '🌍'
       },
       {
@@ -79,7 +80,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Crypto',
         subcategory: 'Bitcoin',
-        isLive: true,
+        isLive: false,
         image: '₿'
       },
       {
@@ -104,7 +105,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Trump',
         subcategory: 'US Elections',
-        isLive: true,
+        isLive: false,
         image: '🗽'
       },
       {
@@ -129,7 +130,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Tech',
         subcategory: 'Stocks',
-        isLive: true,
+        isLive: false,
         image: '🚗'
       },
       {
@@ -154,7 +155,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Tech',
         subcategory: 'AI',
-        isLive: true,
+        isLive: false,
         image: '🤖'
       },
       {
@@ -222,7 +223,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Culture',
         subcategory: 'Influencers',
-        isLive: true,
+        isLive: false,
         image: '🤖'
       },
       {
@@ -247,7 +248,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Economy',
         subcategory: 'Federal Reserve',
-        isLive: true,
+        isLive: false,
         image: '🏦'
       },
       {
@@ -338,6 +339,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
 }
 
 // Fetch single market by ID
+// DISABLED: Polymarket integration removed
 export async function fetchMarketById(marketId: string): Promise<PolymarketEvent | null> {
   try {
     const events = await fetchPolymarketEvents()
@@ -349,6 +351,7 @@ export async function fetchMarketById(marketId: string): Promise<PolymarketEvent
 }
 
 // Convert Polymarket data to our internal format
+// DISABLED: Polymarket integration removed
 export function convertPolymarketToMarket(polymarketEvent: PolymarketEvent) {
   return {
     id: polymarketEvent.id,
@@ -363,7 +366,7 @@ export function convertPolymarketToMarket(polymarketEvent: PolymarketEvent) {
     volume: polymarketEvent.volume,
     category: polymarketEvent.category,
     subcategory: polymarketEvent.subcategory,
-    isLive: polymarketEvent.isLive,
+    isLive: false, // No live bets
     endTime: new Date(polymarketEvent.endDate).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

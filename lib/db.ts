@@ -17,10 +17,11 @@ interface DatabaseMarket {
 }
 
 // Database connection
-console.log('DATABASE_URL:', process.env.DATABASE_URL ? 'Set' : 'Not set')
+console.log('DATABASE_URL:', process.env.POSTGRES_URL ? 'Set' : 'Not set')
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set')
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 })
 

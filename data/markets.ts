@@ -51,7 +51,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'LALIGA',
     volume: 632000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '5-1', name: 'Real Madrid', probability: 61, color: 'yellow', icon: '👑' },
       { id: '5-2', name: 'DRAW', probability: 23, color: 'grey' },
@@ -64,7 +64,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'MLB',
     volume: 595000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '6-1', name: 'Brewers', probability: 47, color: 'blue', icon: '⚾' },
       { id: '6-2', name: 'Blue Jays', probability: 53, color: 'blue', icon: '⚾' }
@@ -76,7 +76,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'MLB',
     volume: 406000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '7-1', name: 'Marlins', probability: 38, color: 'teal', icon: '⚾' },
       { id: '7-2', name: 'Mets', probability: 63, color: 'brown', icon: '⚾' }
@@ -88,7 +88,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'CFB',
     volume: 341000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '8-1', name: 'Nevada', probability: 1, color: 'blue', icon: '🏔️' },
       { id: '8-2', name: 'Penn State', probability: 99, color: 'lightblue', icon: '🦁' }
@@ -100,7 +100,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'SEA',
     volume: 274000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '9-1', name: 'Napoli', probability: 52, color: 'blue', icon: 'N' },
       { id: '9-2', name: 'DRAW', probability: 38, color: 'grey' },
@@ -113,7 +113,7 @@ export const markets: Market[] = [
     category: 'Sports',
     subcategory: 'LIGUE 1',
     volume: 214000,
-    isLive: true,
+    isLive: false,
     outcomes: [
       { id: '10-1', name: 'Toulouse FC', probability: 1, color: 'purple', icon: '✝️' },
       { id: '10-2', name: 'DRAW', probability: 1, color: 'grey' },

@@ -7,6 +7,7 @@ interface WalletContextType {
   userWallet: string | null
   isConnecting: boolean
   isConnected: boolean
+  walletLoading: boolean
   connectWallet: () => Promise<void>
   disconnectWallet: () => void
   checkConnection: () => Promise<void>
@@ -22,6 +23,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
   const [userWallet, setUserWallet] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
+  const [walletLoading, setWalletLoading] = useState(true)
 
   // Load wallet from localStorage on mount
   useEffect(() => {
@@ -34,6 +36,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
       console.log('No wallet found in localStorage')
       setIsConnected(false)
     }
+    setWalletLoading(false) // Mark wallet loading as complete
   }, [])
 
   const connectWallet = async () => {
@@ -114,6 +117,7 @@ export function WalletProvider({ children }: WalletProviderProps) {
     userWallet,
     isConnecting,
     isConnected,
+    walletLoading,
     connectWallet,
     disconnectWallet,
     checkConnection
