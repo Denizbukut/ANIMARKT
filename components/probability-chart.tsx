@@ -14,6 +14,41 @@ interface ChartDataPoint {
   probability: number
 }
 
+// Helper function to get real votes from localStorage
+function getRealVotesFromLocalStorage() {
+  try {
+    const savedVotes = localStorage.getItem('userVotes') || localStorage.getItem('userBets')
+    if (!savedVotes) return []
+    return JSON.parse(savedVotes).filter((vote: any) => vote.isRealTransaction === true)
+  } catch (error) {
+    console.error('Error reading votes from localStorage:', error)
+    return []
+  }
+}
+
+// Helper function to calculate real probabilities from user votes
+function calculateRealProbabilitiesFromVotes(votes: any[]) {
+  const yesVotes = votes.filter(vote => 
+    vote.outcome_name?.toLowerCase().includes('yes') || 
+    vote.outcome_name?.toLowerCase().includes('ja')
+  )
+  const noVotes = votes.filter(vote => 
+    vote.outcome_name?.toLowerCase().includes('no') || 
+    vote.outcome_name?.toLowerCase().includes('nein')
+  )
+  
+  const totalVotes = yesVotes.length + noVotes.length
+  
+  if (totalVotes === 0) {
+    return { yes: 50, no: 50 }
+  }
+  
+  const yesPercentage = Math.round((yesVotes.length / totalVotes) * 100)
+  const noPercentage = 100 - yesPercentage
+  
+  return { yes: yesPercentage, no: noPercentage }
+}
+
 export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('ALL')
   
@@ -21,32 +56,43 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
   const primaryOutcome = outcomes.find(o => o.name === 'Yes') || outcomes[0]
   const primaryColor = getStandardizedColor(primaryOutcome?.name || '', primaryOutcome?.color)
   
-  // Generate historical data for the selected outcome (Yes option)
+  // Update outcomes with real vote-based probabilities
+  const realVotes = getRealVotesFromLocalStorage()
+  const realProbabilities = calculateRealProbabilitiesFromVotes(realVotes)
+  
+  // Update outcomes with real probabilities
+  const updatedOutcomes = outcomes.map(outcome => {
+    if (outcome.name?.toLowerCase().includes('yes') || outcome.name?.toLowerCase().includes('ja')) {
+      return { ...outcome, probability: realProbabilities.yes }
+    } else if (outcome.name?.toLowerCase().includes('no') || outcome.name?.toLowerCase().includes('nein')) {
+      return { ...outcome, probability: realProbabilities.no }
+    }
+    return outcome
+  })
+  
+  // Generate historical data based on REAL USER VOTES
   const generateHistoricalData = (): ChartDataPoint[] => {
-    const currentProbability = primaryOutcome?.probability || 50
     const data: ChartDataPoint[] = []
     
     // Generate 7 months of data (Feb to Aug)
     const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']
     
-    // If current probability is 50%, show a flat line at 50%
-    // Otherwise, show some variation leading to current value
+    // Use real probabilities from user votes
     let baseValues: number[]
     
-    if (currentProbability === 50) {
-      // Show some variation around 50% for new bets to create chart structure
-      baseValues = [48, 52, 49, 51, 50, 49, 50]
+    if (realVotes.length === 0) {
+      // No votes yet - show 50/50 flat line
+      baseValues = [50, 50, 50, 50, 50, 50, 50]
     } else {
-      // Show some historical variation for active bets
-      const variation = Math.abs(currentProbability - 50) / 2
+      // Use real probabilities from user votes
       baseValues = [
-        currentProbability + variation,
-        currentProbability - variation,
-        currentProbability + variation * 0.5,
-        currentProbability - variation * 0.5,
-        currentProbability + variation * 0.3,
-        currentProbability - variation * 0.3,
-        currentProbability
+        realProbabilities.yes,
+        realProbabilities.yes,
+        realProbabilities.yes,
+        realProbabilities.yes,
+        realProbabilities.yes,
+        realProbabilities.yes,
+        realProbabilities.yes
       ]
     }
     
@@ -241,9 +287,9 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
         ))}
       </div>
 
-      {/* Current outcomes summary */}
+      {/* Current outcomes summary - using real vote-based probabilities */}
       <div className="grid grid-cols-2 gap-3">
-        {outcomes.slice(0, 2).map((outcome) => {
+        {updatedOutcomes.slice(0, 2).map((outcome) => {
           const outcomeColor = getStandardizedColor(outcome.name, outcome.color)
           return (
             <div key={outcome.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
