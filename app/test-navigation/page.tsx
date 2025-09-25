@@ -7,12 +7,12 @@ export default function TestNavigation() {
 
   const testNavigation = () => {
     console.log('Test navigation clicked')
-    router.push('/bet/test-market-id')
+    router.push('/vote/test-market-id')
   }
 
   const testWindowLocation = () => {
     console.log('Test window.location clicked')
-    window.location.href = '/bet/test-market-id'
+    window.location.href = '/vote/test-market-id'
   }
 
   return (

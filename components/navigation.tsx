@@ -46,9 +46,9 @@ export function Navigation({
                   variant="outline" 
                   size="sm" 
                   className="h-8 px-4 text-sm"
-                  onClick={() => window.location.href = '/my-bets'}
+                  onClick={() => window.location.href = '/my-votes'}
                 >
-                  My Bets
+                  My Votes
                 </Button>
             </div>
 
@@ -93,7 +93,6 @@ export function Navigation({
               <Button variant="ghost" size="icon" className="h-7 w-7 hidden lg:flex">
                 <Info className="h-3 w-3" />
               </Button>
-              
               <Button variant="ghost" size="icon" className="h-7 w-7">
                 <Menu className="h-3 w-3" />
               </Button>
@@ -147,6 +146,7 @@ export function Navigation({
           </div>
         </div>
       </nav>
+
 
 
       {/* Filter Modal */}

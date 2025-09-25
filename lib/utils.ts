@@ -48,3 +48,16 @@ export function isFavorite(favoriteId: string): boolean {
   const favorites = getFavorites()
   return favorites.some(f => f.id === favoriteId)
 }
+
+// Color standardization for yes/no questions
+export function getStandardizedColor(outcomeName: string, originalColor?: string): string {
+  // For yes/no questions, always use green for Yes and red for No
+  if (outcomeName.toLowerCase() === 'yes') {
+    return 'green'
+  }
+  if (outcomeName.toLowerCase() === 'no') {
+    return 'red'
+  }
+  // For other outcomes, use the original color or default to gray
+  return originalColor || 'grey'
+}

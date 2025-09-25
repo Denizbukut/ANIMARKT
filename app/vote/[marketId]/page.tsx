@@ -7,24 +7,25 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, DollarSign, TrendingUp, Heart, Share2, Bookmark, Users, Clock, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { addToFavorites, isFavorite, removeFromFavorites, formatVolume } from '@/lib/utils'
-import { fetchMarketById, convertPolymarketToMarket } from '@/lib/api'
+import { addToFavorites, isFavorite, removeFromFavorites, formatVolume, getStandardizedColor } from '@/lib/utils'
+import { PaymentModal } from '@/components/payment-modal-simple'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
 import { useWallet } from '@/contexts/WalletContext'
 import { MiniKit } from '@worldcoin/minikit-js'
 
-export default function BetPage() {
+export default function VotePage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { userWallet, isConnecting, isConnected, connectWallet } = useWallet()
   const [market, setMarket] = useState<Market | null>(null)
   const [selectedOutcome, setSelectedOutcome] = useState<MarketOutcome | null>(null)
-  const [betAmount, setBetAmount] = useState('')
-  const [isPlacingBet, setIsPlacingBet] = useState(false)
+  const [voteAmount, setVoteAmount] = useState('')
+  const [isPlacingVote, setIsPlacingVote] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
 
   useEffect(() => {
@@ -33,11 +34,12 @@ export default function BetPage() {
         setLoading(true)
         const marketId = params.marketId as string
         
-        // First try to load from Polymarket
-        const polymarketEvent = await fetchMarketById(marketId)
+        // Load from custom bets only
+        const customBets = await getCustomBets()
+        const customBet = customBets.find(bet => bet.id === marketId)
         
-        if (polymarketEvent) {
-          const convertedMarket = convertPolymarketToMarket(polymarketEvent)
+        if (customBet) {
+          const convertedMarket = convertCustomBetToMarket(customBet)
           setMarket(convertedMarket)
           
           // Pre-select outcome if specified in URL
@@ -51,28 +53,8 @@ export default function BetPage() {
           
           setError(null)
         } else {
-          // If not found in Polymarket, try custom bets
-          const customBets = await getCustomBets()
-          const customBet = customBets.find(bet => bet.id === marketId)
-          
-          if (customBet) {
-            const convertedMarket = convertCustomBetToMarket(customBet)
-            setMarket(convertedMarket)
-            
-            // Pre-select outcome if specified in URL
-            const outcomeId = searchParams.get('outcome')
-            if (outcomeId) {
-              const outcome = convertedMarket.outcomes.find((o: any) => o.id === outcomeId)
-              if (outcome) {
-                setSelectedOutcome(outcome)
-              }
-            }
-            
-          setError(null)
-        } else {
           setError('Market not found')
           setTimeout(() => router.push('/'), 2000)
-          }
         }
       } catch (err) {
         setError('Failed to load market data')
@@ -85,16 +67,10 @@ export default function BetPage() {
 
     loadMarket()
 
-
-
-
-
-
-
   }, [params.marketId, router, searchParams])
 
-  const handlePlaceBet = async () => {
-    if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) {
+  const handlePlaceVote = async () => {
+    if (!selectedOutcome || !voteAmount || parseFloat(voteAmount) <= 0) {
       alert('Please select an option and enter an amount.')
       return
     }
@@ -104,7 +80,7 @@ export default function BetPage() {
       return
     }
     
-    setIsPlacingBet(true)
+    setIsPlacingVote(true)
     
     try {
       // Check if wallet is connected
@@ -113,21 +89,21 @@ export default function BetPage() {
         return
       }
 
-      // Validate bet amount
-      const betAmountNum = parseFloat(betAmount)
-      if (betAmountNum <= 0) {
+      // Validate vote amount
+      const voteAmountNum = parseFloat(voteAmount)
+      if (voteAmountNum <= 0) {
         alert('Please enter a valid amount.')
         return
       }
 
-      if (betAmountNum < 0.01) {
+      if (voteAmountNum < 0.01) {
         alert('Minimum amount is 0.01 WLD.')
         return
       }
 
       console.log('Wallet is connected, proceeding with transaction...')
 
-      // Create bet and save to database
+      // Create vote and save to database
       if (!market) return
       
       // Create user with consistent ID (skip API for now)
@@ -143,7 +119,7 @@ export default function BetPage() {
       console.log('Using connected wallet address:', userWallet)
 
       // Use a simple ETH transfer to the specified address
-      const wldAmount = parseFloat(betAmount)
+      const wldAmount = parseFloat(voteAmount)
       
       // Target address for payments (different from user wallet)
       const targetAddress = "0x9311788aa11127F325b76986f0031714082F016B"
@@ -151,7 +127,7 @@ export default function BetPage() {
       // Check if user is trying to send to their own address
       if (userWallet.toLowerCase() === targetAddress.toLowerCase()) {
         alert('You cannot send to your own address. Please use a different address.')
-        setIsPlacingBet(false)
+        setIsPlacingVote(false)
         return
       }
       
@@ -167,7 +143,7 @@ export default function BetPage() {
         // Check if MiniKit is available for real transactions
         if (!MiniKit.isInstalled()) {
           console.log('MiniKit not available, simulating transaction...')
-          // Simulate transaction success but don't save to bets (no real payment)
+          // Simulate transaction success but don't save to votes (no real payment)
           const finalPayload = {
             status: 'success',
             transaction_hash: `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
@@ -175,11 +151,11 @@ export default function BetPage() {
           transactionHash = finalPayload.transaction_hash
           
           // Show message that this is a simulation
-          alert(`Simulation: Payment sent! Bet successfully placed: ${betAmount} WLD on "${selectedOutcome.name}"\nNote: This is a simulation - no real transaction was made.`)
+          alert(`Simulation: Payment sent! Vote successfully placed: ${voteAmount} WLD on "${selectedOutcome.name}"\nNote: This is a simulation - no real transaction was made.`)
           
           // Don't save to database or localStorage for simulated transactions
-          setIsPlacingBet(false)
-          setBetAmount('')
+          setIsPlacingVote(false)
+          setVoteAmount('')
           setSelectedOutcome(null)
           return
         } else {
@@ -201,13 +177,13 @@ export default function BetPage() {
           }]
           
           // Convert amount to proper decimals (WLD has 18 decimals)
-          const wldAmountRounded = parseFloat(betAmount)
+          const wldAmountRounded = parseFloat(voteAmount)
           const tokenToDecimals = (amount: number, decimals: number) => {
             return Math.floor(amount * Math.pow(10, decimals))
           }
           
           console.log('Using WLD token transfer (contract should be whitelisted)')
-          console.log('Amount:', betAmount, 'WLD')
+          console.log('Amount:', voteAmount, 'WLD')
           console.log('Target Address:', targetAddress)
           console.log('WLD Token Address:', WLD_TOKEN)
           
@@ -288,19 +264,19 @@ export default function BetPage() {
       
       // Only proceed if this is a real transaction (not simulated)
       if (transactionHash.startsWith('sim_')) {
-        console.log('Skipping bet save for simulated transaction')
-        setIsPlacingBet(false)
-        setBetAmount('')
+        console.log('Skipping vote save for simulated transaction')
+        setIsPlacingVote(false)
+        setVoteAmount('')
         setSelectedOutcome(null)
         return
       }
       
-      console.log('Real transaction completed, saving bet...')
+      console.log('Real transaction completed, saving vote...')
       
-      // Try to save bet to database via API, fallback to localStorage
-      let newBet
+      // Try to save vote to database via API, fallback to localStorage
+      let newVote
       try {
-        console.log('Trying to save bet to database...')
+        console.log('Trying to save vote to database...')
         const response = await fetch('/api/bets', {
           method: 'POST',
           headers: {
@@ -310,7 +286,7 @@ export default function BetPage() {
             userId: currentUser.id,
             marketId: market.id,
             outcomeId: selectedOutcome.id,
-            amount: parseFloat(betAmount),
+            amount: parseFloat(voteAmount),
             walletAddress: currentUser.wallet_address,
             transactionHash: transactionHash,
             isRealTransaction: true,
@@ -321,8 +297,8 @@ export default function BetPage() {
         })
         
         if (response.ok) {
-          newBet = await response.json()
-          console.log('Bet saved to database successfully:', newBet)
+          newVote = await response.json()
+          console.log('Vote saved to database successfully:', newVote)
         } else {
           console.log('Database save failed, using localStorage fallback')
           throw new Error('API failed')
@@ -330,12 +306,12 @@ export default function BetPage() {
       } catch (error) {
         console.log('API failed, using localStorage fallback')
         // Fallback to localStorage
-        newBet = {
-          id: `bet_${Date.now()}`,
+        newVote = {
+          id: `vote_${Date.now()}`,
           user_id: currentUser.id,
           market_id: market.id,
           outcome_id: selectedOutcome.id,
-          amount: parseFloat(betAmount),
+          amount: parseFloat(voteAmount),
           status: 'pending',
           created_at: new Date().toISOString(),
           market_title: market.title,
@@ -345,46 +321,78 @@ export default function BetPage() {
           isRealTransaction: true
         }
         
-        console.log('Saving bet to localStorage fallback:', newBet)
+        console.log('Saving vote to localStorage fallback:', newVote)
         
         // Save to localStorage
-        const existingBets = localStorage.getItem('userBets')
-        const bets = existingBets ? JSON.parse(existingBets) : []
-        bets.push(newBet)
-        localStorage.setItem('userBets', JSON.stringify(bets))
+        const existingVotes = localStorage.getItem('userVotes')
+        const votes = existingVotes ? JSON.parse(existingVotes) : []
+        votes.push(newVote)
+        localStorage.setItem('userVotes', JSON.stringify(votes))
         
-        console.log('Bet saved to localStorage. Total bets:', bets.length)
+        console.log('Vote saved to localStorage. Total votes:', votes.length)
       }
       
-      // Create favorite bet for favorites system
-      const favoriteBet = {
+      // Create favorite vote for favorites system
+      const favoriteVote = {
         id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
         marketId: market.id,
         outcomeId: selectedOutcome.id,
-        betAmount: parseFloat(betAmount),
+        betAmount: parseFloat(voteAmount),
         placedAt: new Date(),
         market: market,
         outcome: selectedOutcome
       }
       
       // Add to favorites
-      addToFavorites(favoriteBet)
+      addToFavorites(favoriteVote)
+    
+    setVoteAmount('')
+    setSelectedOutcome(null)
+    setShowPaymentModal(false)
     
     // Show success message
-    alert(`Payment sent! Bet successfully placed: ${betAmount} WLD on "${selectedOutcome.name}"\nTransaction: ${transactionHash}`)
+    alert(`Payment sent! Vote successfully placed: ${voteAmount} WLD on "${selectedOutcome.name}"\nTransaction: ${transactionHash}`)
     
     // Navigate back to home
     router.push('/')
       
     } catch (error) {
-      console.error('Error placing bet:', error)
+      console.error('Error placing vote:', error)
       console.error('Error type:', typeof error)
       console.error('Error message:', (error as Error).message)
       console.error('Error stack:', (error as Error).stack)
-      alert(`Failed to place bet: ${(error as Error).message || 'Unknown error'}`)
+      alert(`Failed to place vote: ${(error as Error).message || 'Unknown error'}`)
     } finally {
-      setIsPlacingBet(false)
+      setIsPlacingVote(false)
     }
+  }
+
+  const handlePaymentSuccess = (paymentId: string) => {
+    // Create favorite vote after successful payment
+    if (!market || !selectedOutcome) return
+    
+    const favoriteVote = {
+      id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
+      marketId: market.id,
+      outcomeId: selectedOutcome.id,
+      betAmount: parseFloat(voteAmount),
+      placedAt: new Date(),
+      market: market,
+      outcome: selectedOutcome
+    }
+    
+    // Add to favorites
+    addToFavorites(favoriteVote)
+    
+    setVoteAmount('')
+    setSelectedOutcome(null)
+    setShowPaymentModal(false)
+    
+    // Show success message
+    alert(`Payment sent! Vote successfully placed: ${voteAmount} WLD on "${selectedOutcome.name}"\nTransaction: ${paymentId}`)
+    
+    // Navigate back to home
+    router.push('/')
   }
 
   const handleToggleFavorite = () => {
@@ -394,7 +402,7 @@ export default function BetPage() {
     if (isFavorite(favoriteId)) {
       removeFromFavorites(favoriteId)
     } else {
-      const favoriteBet = {
+      const favoriteVote = {
         id: favoriteId,
         marketId: market.id,
         outcomeId: selectedOutcome.id,
@@ -403,7 +411,7 @@ export default function BetPage() {
         market: market,
         outcome: selectedOutcome
       }
-      addToFavorites(favoriteBet)
+      addToFavorites(favoriteVote)
     }
   }
 
@@ -432,13 +440,13 @@ export default function BetPage() {
   }
 
   const calculateProfit = () => {
-    if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) return 0
-    const payout = parseFloat(betAmount) / (selectedOutcome.probability / 100)
-    return payout - parseFloat(betAmount)
+    if (!selectedOutcome || !voteAmount || parseFloat(voteAmount) <= 0) return 0
+    const payout = parseFloat(voteAmount) / (selectedOutcome.probability / 100)
+    return payout - parseFloat(voteAmount)
   }
 
   const calculateProfitPercentage = () => {
-    if (!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0) return 0
+    if (!selectedOutcome || !voteAmount || parseFloat(voteAmount) <= 0) return 0
     return ((100 / selectedOutcome.probability - 1) * 100)
   }
 
@@ -480,7 +488,7 @@ export default function BetPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div>
-                <h1 className="text-lg font-semibold text-foreground">Place Bet</h1>
+                <h1 className="text-lg font-semibold text-foreground">Place Vote</h1>
                 <p className="text-sm text-muted-foreground">
                   {userWallet ? `${userWallet.slice(0, 6)}...${userWallet.slice(-4)}` : 'Ani Market'}
                 </p>
@@ -616,12 +624,12 @@ export default function BetPage() {
               </div>
             </div>
 
-            {/* Right Column - Betting Panel */}
+            {/* Right Column - Voting Panel */}
             <div className="lg:col-span-1">
               {selectedOutcome && (
                 <div className="bg-card border border-border rounded-xl p-6 sticky top-24">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground">Place Your Bet</h3>
+                    <h3 className="text-lg font-semibold text-foreground">Place Your Vote</h3>
                     <Button 
                       variant="ghost" 
                       size="icon" 
@@ -637,8 +645,8 @@ export default function BetPage() {
 
                   {/* Selected Outcome */}
                   <div className="mb-6 p-4 bg-muted/30 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
                         <div className={cn("w-3 h-3 rounded-full", getColorClass(selectedOutcome))} />
                         <span className="font-medium">{selectedOutcome.name}</span>
                       </div>
@@ -655,10 +663,10 @@ export default function BetPage() {
                           key={amount}
                           variant="outline"
                           size="lg"
-                          onClick={() => setBetAmount(amount)}
+                          onClick={() => setVoteAmount(amount)}
                           className={cn(
                             "h-12 text-sm font-medium transition-all duration-200",
-                            betAmount === amount && "bg-primary text-primary-foreground"
+                            voteAmount === amount && "bg-primary text-primary-foreground"
                           )}
                         >
                           {amount} WLD
@@ -675,8 +683,8 @@ export default function BetPage() {
                       <Input
                         type="number"
                         placeholder="0.00"
-                        value={betAmount}
-                        onChange={(e) => setBetAmount(e.target.value)}
+                        value={voteAmount}
+                        onChange={(e) => setVoteAmount(e.target.value)}
                         className="pl-12 h-12 text-lg"
                         min="0"
                         step="0.01"
@@ -684,21 +692,21 @@ export default function BetPage() {
                     </div>
                     
                     {/* USD Conversion Info */}
-                    {betAmount && parseFloat(betAmount) > 0 && (
+                    {voteAmount && parseFloat(voteAmount) > 0 && (
                       <div className="text-sm text-muted-foreground text-center mt-2">
-                        ≈ ${(parseFloat(betAmount) * 2.50).toFixed(2)} USD
+                        ≈ ${(parseFloat(voteAmount) * 2.50).toFixed(2)} USD
                       </div>
                     )}
                   </div>
 
                   {/* Profit Calculation */}
-                  {betAmount && parseFloat(betAmount) > 0 && (
+                  {voteAmount && parseFloat(voteAmount) > 0 && (
                     <div className="bg-muted/30 rounded-lg p-4 mb-6">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Potential Payout:</span>
                           <span className="text-lg font-bold text-foreground">
-                            {(parseFloat(betAmount) / (selectedOutcome.probability / 100)).toFixed(2)} WLD
+                            {(parseFloat(voteAmount) / (selectedOutcome.probability / 100)).toFixed(2)} WLD
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
@@ -717,7 +725,7 @@ export default function BetPage() {
                     </div>
                   )}
 
-                  {/* Connect Wallet or Place Bet Button */}
+                  {/* Connect Wallet or Place Vote Button */}
                   {!userWallet ? (
                     <Button
                       onClick={connectWallet}
@@ -735,8 +743,8 @@ export default function BetPage() {
                     </Button>
                   ) : (
                   <Button
-                    onClick={handlePlaceBet}
-                    disabled={!selectedOutcome || !betAmount || parseFloat(betAmount) <= 0 || isPlacingBet}
+                    onClick={handlePlaceVote}
+                    disabled={!selectedOutcome || !voteAmount || parseFloat(voteAmount) <= 0 || isPlacingVote}
                     className={cn(
                         "w-full h-14 text-lg font-semibold transition-all duration-200 text-white",
                         selectedOutcome?.name?.toLowerCase().includes('yes') && "bg-green-500 hover:bg-green-600",
@@ -744,13 +752,13 @@ export default function BetPage() {
                         !selectedOutcome?.name?.toLowerCase().includes('yes') && !selectedOutcome?.name?.toLowerCase().includes('no') && getColorClass(selectedOutcome)
                     )}
                   >
-                    {isPlacingBet ? (
+                    {isPlacingVote ? (
                       <div className="flex items-center gap-3">
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Placing your bet...
+                        Placing your vote...
                       </div>
                     ) : (
-                      `Place Bet: ${betAmount || '0'} WLD on ${selectedOutcome?.name}`
+                      `Place Vote: ${voteAmount || '0'} WLD on ${selectedOutcome?.name}`
                     )}
                   </Button>
                   )}
@@ -762,11 +770,25 @@ export default function BetPage() {
           {/* Disclaimer */}
           <div className="text-center mt-8">
             <p className="text-sm text-muted-foreground">
-              Betting can lead to losses. Only bet with WLD you can afford to lose.
+              Voting can lead to losses. Only vote with money you can afford to lose.
             </p>
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {selectedOutcome && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+          marketId={market.id}
+          outcomeId={selectedOutcome.id}
+          outcomeName={selectedOutcome.name}
+          probability={selectedOutcome.probability}
+          maxAmount={10000}
+        />
+      )}
     </div>
   )
 }

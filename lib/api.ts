@@ -22,6 +22,7 @@ export interface PolymarketResponse {
   events: PolymarketEvent[]
 }
 
+// DISABLED: Polymarket integration removed
 // Fetch real market data from Polymarket API
 export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
   try {
@@ -52,9 +53,9 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
             color: 'red'
           }
         ],
-        category: 'Politics',
-        subcategory: 'Geopolitics',
-        isLive: true,
+        category: 'Geopolitics',
+        subcategory: 'International Relations',
+        isLive: false,
         image: '🌍'
       },
       {
@@ -79,7 +80,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Crypto',
         subcategory: 'Bitcoin',
-        isLive: true,
+        isLive: false,
         image: '₿'
       },
       {
@@ -102,9 +103,9 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
             color: 'blue'
           }
         ],
-        category: 'Politics',
+        category: 'Trump',
         subcategory: 'US Elections',
-        isLive: true,
+        isLive: false,
         image: '🗽'
       },
       {
@@ -129,7 +130,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Tech',
         subcategory: 'Stocks',
-        isLive: true,
+        isLive: false,
         image: '🚗'
       },
       {
@@ -154,7 +155,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         ],
         category: 'Tech',
         subcategory: 'AI',
-        isLive: true,
+        isLive: false,
         image: '🤖'
       },
       {
@@ -199,6 +200,131 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
         subcategory: 'Football',
         isLive: false,
         image: '⚽'
+      },
+      {
+        id: 'mrbeast-40m-clean-water',
+        title: 'Will MrBeast raise $40M for clean water by end of 2024?',
+        description: 'Will MrBeast successfully raise $40 million for clean water initiatives by December 31, 2024?',
+        volume: 4000000,
+        endDate: '2024-12-31T23:59:59Z',
+        outcomes: [
+          {
+            id: 'yes',
+            name: 'Yes',
+            probability: 89,
+            color: 'green'
+          },
+          {
+            id: 'no',
+            name: 'No',
+            probability: 11,
+            color: 'red'
+          }
+        ],
+        category: 'Culture',
+        subcategory: 'Influencers',
+        isLive: false,
+        image: '🤖'
+      },
+      {
+        id: 'fed-rate-cut-september',
+        title: 'Will the Fed cut rates by 50+ bps in September?',
+        description: 'Will the Federal Reserve cut interest rates by 50 basis points or more in September 2024?',
+        volume: 53000000,
+        endDate: '2024-09-30T23:59:59Z',
+        outcomes: [
+          {
+            id: 'yes',
+            name: 'Yes',
+            probability: 5,
+            color: 'green'
+          },
+          {
+            id: 'no',
+            name: 'No',
+            probability: 95,
+            color: 'red'
+          }
+        ],
+        category: 'Economy',
+        subcategory: 'Federal Reserve',
+        isLive: false,
+        image: '🏦'
+      },
+      {
+        id: 'taylor-swift-pregnant-2025',
+        title: 'Will Taylor Swift be pregnant in 2025?',
+        description: 'Will Taylor Swift announce or be confirmed pregnant at any point during 2025?',
+        volume: 200000,
+        endDate: '2025-12-31T23:59:59Z',
+        outcomes: [
+          {
+            id: 'yes',
+            name: 'Yes',
+            probability: 13,
+            color: 'green'
+          },
+          {
+            id: 'no',
+            name: 'No',
+            probability: 87,
+            color: 'red'
+          }
+        ],
+        category: 'Culture',
+        subcategory: 'Celebrities',
+        isLive: false,
+        image: '🎤'
+      },
+      {
+        id: 'putin-zelenskyy-meeting-2025',
+        title: 'Will Putin meet with Zelenskyy in 2025?',
+        description: 'Will Vladimir Putin and Volodymyr Zelenskyy have a face-to-face meeting in 2025?',
+        volume: 1000000,
+        endDate: '2025-12-31T23:59:59Z',
+        outcomes: [
+          {
+            id: 'yes',
+            name: 'Yes',
+            probability: 24,
+            color: 'green'
+          },
+          {
+            id: 'no',
+            name: 'No',
+            probability: 76,
+            color: 'red'
+          }
+        ],
+        category: 'Geopolitics',
+        subcategory: 'Ukraine Conflict',
+        isLive: false,
+        image: '👥'
+      },
+      {
+        id: 'world-population-8-billion-2025',
+        title: 'Will world population reach 8.1 billion by end of 2025?',
+        description: 'Will the global human population reach or exceed 8.1 billion people by December 31, 2025?',
+        volume: 750000,
+        endDate: '2025-12-31T23:59:59Z',
+        outcomes: [
+          {
+            id: 'yes',
+            name: 'Yes',
+            probability: 67,
+            color: 'green'
+          },
+          {
+            id: 'no',
+            name: 'No',
+            probability: 33,
+            color: 'red'
+          }
+        ],
+        category: 'World',
+        subcategory: 'Demographics',
+        isLive: false,
+        image: '🌍'
       }
     ]
 
@@ -213,6 +339,7 @@ export async function fetchPolymarketEvents(): Promise<PolymarketEvent[]> {
 }
 
 // Fetch single market by ID
+// DISABLED: Polymarket integration removed
 export async function fetchMarketById(marketId: string): Promise<PolymarketEvent | null> {
   try {
     const events = await fetchPolymarketEvents()
@@ -224,6 +351,7 @@ export async function fetchMarketById(marketId: string): Promise<PolymarketEvent
 }
 
 // Convert Polymarket data to our internal format
+// DISABLED: Polymarket integration removed
 export function convertPolymarketToMarket(polymarketEvent: PolymarketEvent) {
   return {
     id: polymarketEvent.id,
@@ -238,7 +366,7 @@ export function convertPolymarketToMarket(polymarketEvent: PolymarketEvent) {
     volume: polymarketEvent.volume,
     category: polymarketEvent.category,
     subcategory: polymarketEvent.subcategory,
-    isLive: polymarketEvent.isLive,
+    isLive: false, // No live bets
     endTime: new Date(polymarketEvent.endDate).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',

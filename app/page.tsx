@@ -31,24 +31,23 @@ const filterOptions = [
   { id: 'trending', name: 'Trending' },
   { id: 'ending-soon', name: 'Ending Soon' },
   { id: 'high-volume', name: 'High Volume' },
-  { id: 'live', name: 'Live' }
 ]
 
 export default function Home() {
   const router = useRouter()
-  const { isConnected, userWallet } = useWallet()
+  const { isConnected, userWallet, walletLoading } = useWallet()
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedFilter, setSelectedFilter] = useState('all')
   const [markets, setMarkets] = useState<Market[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Redirect to login if not connected
+  // Redirect to login if not connected (but wait for wallet to load)
   useEffect(() => {
-    if (!isConnected) {
+    if (!walletLoading && !isConnected) {
       router.push('/login')
     }
-  }, [isConnected, router])
+  }, [walletLoading, isConnected, router])
 
   useEffect(() => {
     async function loadMarkets() {
@@ -115,10 +114,6 @@ export default function Home() {
         // Markets with very high volume
         filterMatch = market.volume > 15000000
         break
-      case 'live':
-        // Live markets
-        filterMatch = market.isLive === true
-        break
       case 'favorites':
         // Favorite markets
         filterMatch = isFavorite(`market-${market.id}`)
@@ -141,9 +136,6 @@ export default function Home() {
         return aEndDate.getTime() - bEndDate.getTime()
       case 'high-volume':
         // Sort by volume (descending) for high volume
-        return b.volume - a.volume
-      case 'live':
-        // Sort live markets by volume (descending)
         return b.volume - a.volume
       default:
         // Default sort by volume (descending)
@@ -197,6 +189,18 @@ export default function Home() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show wallet loading screen
+  if (walletLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading wallet...</p>
         </div>
       </div>
     )

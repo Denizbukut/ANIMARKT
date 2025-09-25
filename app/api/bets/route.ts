@@ -1,20 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBetWithFallback, getBetsByUserWithFallback, getBetsByWalletWithFallback, createUserWithFallback } from '@/lib/bets-storage'
+import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get('userId')
     const walletAddress = searchParams.get('walletAddress')
+    const marketId = searchParams.get('marketId')
 
-    console.log('Fetching bets for:', { userId, walletAddress })
+    console.log('Fetching bets for:', { userId, walletAddress, marketId })
 
     let bets: any[] = []
 
-    if (userId) {
-      bets = await getBetsByUserWithFallback(userId)
-    } else if (walletAddress) {
-      bets = await getBetsByWalletWithFallback(walletAddress)
+    // If marketId is specified, fetch from database
+    if (marketId) {
+      try {
+        console.log('🔍 Fetching bets from database for market:', marketId)
+        
+        // Test database connection first
+        await pool.query('SELECT 1')
+        console.log('✅ Database connection successful for bets API')
+        
+        // Check if bets table exists
+        const tableCheckQuery = `
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'bets'
+          );
+        `
+        const tableExists = await pool.query(tableCheckQuery)
+        console.log('📊 Bets table exists:', tableExists.rows[0].exists)
+        
+        if (!tableExists.rows[0].exists) {
+          console.log('❌ Bets table does not exist, returning empty array')
+          bets = []
+        } else {
+          const query = `
+            SELECT * FROM bets 
+            WHERE market_id = $1 AND is_real_transaction = true
+            ORDER BY created_at DESC
+          `
+          const result = await pool.query(query, [marketId])
+          bets = result.rows
+          console.log('✅ Bets fetched from database for market:', marketId, 'Count:', bets.length)
+        }
+      } catch (dbError) {
+        console.error('❌ Database error, falling back to localStorage:', dbError)
+        // Fallback to localStorage if database fails
+        bets = []
+      }
+    }
+
+    // Fallback to localStorage-based functions for user/wallet queries
+    if (bets.length === 0) {
+      if (userId) {
+        bets = await getBetsByUserWithFallback(userId)
+      } else if (walletAddress) {
+        bets = await getBetsByWalletWithFallback(walletAddress)
+      }
     }
 
     return NextResponse.json(bets)

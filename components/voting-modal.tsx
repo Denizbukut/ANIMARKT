@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, DollarSign, TrendingUp, Heart } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { addToFavorites, isFavorite, removeFromFavorites } from '@/lib/utils'
+import { addToFavorites, isFavorite, removeFromFavorites, getStandardizedColor } from '@/lib/utils'
+import { PaymentModal } from './payment-modal-simple'
 
 interface BettingModalProps {
   market: Market
@@ -19,20 +20,18 @@ export function BettingModal({ market, selectedOutcome, isOpen, onClose }: Betti
   const [betAmount, setBetAmount] = useState('')
   const [isPlacingBet, setIsPlacingBet] = useState(false)
   const [isFavorited, setIsFavorited] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
-  const handlePlaceBet = async () => {
+  const handlePlaceBet = () => {
     if (!betAmount || parseFloat(betAmount) <= 0) return
     
-    setIsPlacingBet(true)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setIsPlacingBet(false)
-    onClose()
-    setBetAmount('')
-    
-    // Create favorite bet
+    console.log('Opening payment modal...')
+    // Open payment modal instead of directly placing bet
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = (paymentId: string) => {
+    // Create favorite bet after successful payment
     const favoriteBet: FavoriteBet = {
       id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
       marketId: market.id,
@@ -46,8 +45,12 @@ export function BettingModal({ market, selectedOutcome, isOpen, onClose }: Betti
     // Add to favorites
     addToFavorites(favoriteBet)
     
-    // Show success message (you can add a toast notification here)
-    alert(`Bet successfully placed! ${betAmount} WLD on "${selectedOutcome.name}"`)
+    setBetAmount('')
+    setShowPaymentModal(false)
+    onClose()
+    
+    // Show success message
+    alert(`Bet successfully placed! ${betAmount} USD on "${selectedOutcome.name}"`)
   }
 
   const handleToggleFavorite = () => {
@@ -193,7 +196,7 @@ export function BettingModal({ market, selectedOutcome, isOpen, onClose }: Betti
             disabled={!betAmount || parseFloat(betAmount) <= 0 || isPlacingBet}
             className={cn(
               "w-full",
-              getColorClass(selectedOutcome.color)
+              getColorClass(getStandardizedColor(selectedOutcome.name, selectedOutcome.color))
             )}
           >
             {isPlacingBet ? (
@@ -209,9 +212,21 @@ export function BettingModal({ market, selectedOutcome, isOpen, onClose }: Betti
 
         {/* Disclaimer */}
         <p className="text-xs text-muted-foreground mt-4 text-center">
-          Betting can lead to losses. Only bet with WLD you can afford to lose.
+          Betting can lead to losses. Only bet with money you can afford to lose.
         </p>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        onPaymentSuccess={handlePaymentSuccess}
+        marketId={market.id}
+        outcomeId={selectedOutcome.id}
+        outcomeName={selectedOutcome.name}
+        probability={selectedOutcome.probability}
+        maxAmount={10000}
+      />
     </div>
   )
 }

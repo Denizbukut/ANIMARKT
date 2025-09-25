@@ -34,10 +34,116 @@ export interface UserCustomBet {
   updated_at: string
 }
 
+// Calculate real volume and trader count from localStorage (fallback when DB not available)
+function calculateRealVolumeAndTradersFromLocalStorage(betId: string): { totalVolume: number, traderCount: number } {
+  try {
+    console.log('🔍 Calculating volume/traders from localStorage for bet:', betId)
+    
+    // Get all votes from localStorage
+    const savedVotes = localStorage.getItem('userVotes') || localStorage.getItem('userBets')
+    if (!savedVotes) {
+      console.log('📊 No votes found in localStorage')
+      return { totalVolume: 0, traderCount: 0 }
+    }
+    
+    const allVotes = JSON.parse(savedVotes)
+    console.log('📊 Total votes in localStorage:', allVotes.length)
+    
+    // Filter votes for this specific bet
+    const betVotes = allVotes.filter((vote: any) => 
+      vote.market_id === betId && vote.isRealTransaction === true
+    )
+    console.log('📊 Votes for this bet:', betVotes.length)
+    
+    // Calculate total volume
+    const totalVolume = betVotes.reduce((sum: number, vote: any) => sum + vote.amount, 0)
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(betVotes.map((vote: any) => vote.user_id))
+    const traderCount = uniqueTraders.size
+    
+    console.log(`📈 Bet ${betId}: Volume=${totalVolume}, Traders=${traderCount}`)
+    return { totalVolume, traderCount }
+  } catch (error) {
+    console.error('❌ Error calculating volume/traders from localStorage:', error)
+    return { totalVolume: 0, traderCount: 0 }
+  }
+}
+
+// Calculate real volume and trader count from database (with localStorage fallback)
+async function calculateRealVolumeAndTraders(betId: string): Promise<{ totalVolume: number, traderCount: number }> {
+  try {
+    console.log('🔄 Attempting to fetch votes from database for bet:', betId)
+    
+    // Try database first
+    const response = await fetch(`/api/bets?marketId=${betId}`)
+    if (!response.ok) {
+      console.log('❌ Database API failed, using localStorage fallback')
+      return calculateRealVolumeAndTradersFromLocalStorage(betId)
+    }
+    
+    const betVotes = await response.json()
+    console.log('✅ Database response received:', betVotes.length, 'votes')
+    
+    // Filter only real transactions
+    const realVotes = betVotes.filter((vote: any) => vote.is_real_transaction === true)
+    
+    // Calculate total volume
+    const totalVolume = realVotes.reduce((sum: number, vote: any) => sum + parseFloat(vote.amount), 0)
+    
+    // Calculate unique traders
+    const uniqueTraders = new Set(realVotes.map((vote: any) => vote.user_id))
+    const traderCount = uniqueTraders.size
+    
+    console.log(`📈 Bet ${betId} (from DB): Volume=${totalVolume}, Traders=${traderCount}`)
+    return { totalVolume, traderCount }
+  } catch (error) {
+    console.error('❌ Error with database, using localStorage fallback:', error)
+    return calculateRealVolumeAndTradersFromLocalStorage(betId)
+  }
+}
+
 // API Functions (these would connect to your real database)
 export async function getCustomBets(): Promise<CustomBet[]> {
-  // Here you would call your real API
-  // For now we return mock data + your BTC bet
+  try {
+    console.log('🔄 Attempting to fetch custom bets from database...')
+    // Fetch custom bets from database
+    const response = await fetch('/api/custom-bets')
+    console.log('📡 API Response status:', response.status, response.ok)
+    
+    if (!response.ok) {
+      console.error('❌ Failed to fetch custom bets from database, using fallback')
+      console.log('📊 Using fallback data with volume: 0')
+      return getFallbackCustomBets()
+    }
+    
+    const customBetsFromDB = await response.json()
+    console.log('✅ Custom bets fetched from database:', customBetsFromDB.length, 'bets')
+    
+    // For each custom bet, calculate real volume and trader count
+    const customBetsWithRealData = await Promise.all(
+      customBetsFromDB.map(async (bet: any) => {
+        console.log(`🔍 Calculating volume for bet: ${bet.id}`)
+        const { totalVolume } = await calculateRealVolumeAndTraders(bet.id)
+        console.log(`📈 Bet ${bet.id} volume: ${totalVolume}`)
+        return {
+          ...bet,
+          total_volume: totalVolume
+        }
+      })
+    )
+    
+    console.log('🎉 Returning custom bets with real volume data')
+    return customBetsWithRealData
+  } catch (error) {
+    console.error('❌ Error fetching custom bets from database:', error)
+    console.log('📊 Using fallback data due to error')
+    return getFallbackCustomBets()
+  }
+}
+
+// Fallback function with mock data
+function getFallbackCustomBets(): CustomBet[] {
   return [
     {
       id: 'btc-150k-october-2024',
@@ -110,7 +216,7 @@ export async function getCustomBets(): Promise<CustomBet[]> {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       is_active: true,
-      total_volume: 5000,
+      total_volume: 0,
       outcomes: [
         {
           id: 'outcome-3',
@@ -137,6 +243,117 @@ export async function getCustomBets(): Promise<CustomBet[]> {
           probability: 10,
           color: 'gray',
           volume: 500,
+          created_at: new Date().toISOString()
+        }
+      ]
+    },
+    {
+      id: 'trump-2028-election',
+      title: 'Will Trump run for President in 2028?',
+      description: 'Will Donald Trump announce his candidacy for the 2028 US Presidential Election?',
+      category: 'Trump',
+      expired_day: '2027-12-31',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 15000,
+      outcomes: [
+        {
+          id: 'trump-2028-yes',
+          bet_id: 'trump-2028-election',
+          name: 'Yes',
+          probability: 45,
+          color: 'green',
+          volume: 6750,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'trump-2028-no',
+          bet_id: 'trump-2028-election',
+          name: 'No',
+          probability: 55,
+          color: 'red',
+          volume: 8250,
+          created_at: new Date().toISOString()
+        }
+      ]
+    },
+    {
+      id: 'economy-recession-2025',
+      title: 'Will there be a recession in 2025?',
+      description: 'Will the US economy enter a recession (2 consecutive quarters of negative GDP growth) in 2025?',
+      category: 'Economy',
+      expired_day: '2025-12-31',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 25000,
+      outcomes: [
+        {
+          id: 'recession-2025-yes',
+          bet_id: 'economy-recession-2025',
+          name: 'Yes',
+          probability: 30,
+          color: 'green',
+          volume: 7500,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'recession-2025-no',
+          bet_id: 'economy-recession-2025',
+          name: 'No',
+          probability: 70,
+          color: 'red',
+          volume: 17500,
+          created_at: new Date().toISOString()
+        }
+      ]
+    },
+    {
+      id: 'world-cup-2026-winner',
+      title: 'Who will win the 2026 FIFA World Cup?',
+      description: 'Which country will win the 2026 FIFA World Cup?',
+      category: 'World',
+      expired_day: '2026-07-19',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      is_active: true,
+      total_volume: 8000,
+      outcomes: [
+        {
+          id: 'world-cup-brazil',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Brazil',
+          probability: 25,
+          color: 'yellow',
+          volume: 2000,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-argentina',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Argentina',
+          probability: 20,
+          color: 'lightblue',
+          volume: 1600,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-france',
+          bet_id: 'world-cup-2026-winner',
+          name: 'France',
+          probability: 15,
+          color: 'blue',
+          volume: 1200,
+          created_at: new Date().toISOString()
+        },
+        {
+          id: 'world-cup-other',
+          bet_id: 'world-cup-2026-winner',
+          name: 'Other',
+          probability: 40,
+          color: 'gray',
+          volume: 3200,
           created_at: new Date().toISOString()
         }
       ]
@@ -249,7 +466,7 @@ export function convertCustomBetToMarket(customBet: CustomBet): any {
     description: customBet.description,
     category: customBet.category || 'Other',
     volume: customBet.total_volume,
-    isLive: !isExpired && daysUntilExpiry <= 7, // Live if ending soon
+    isLive: false, // No live bets
     endTime: customBet.expired_day,
     image: '🎯', // Custom icon for your bets
     subcategory: 'Custom Bet',
