@@ -307,7 +307,7 @@ export default function VotePage() {
         id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
         marketId: market.id,
         outcomeId: selectedOutcome.id,
-        voteAmount: parseFloat(voteAmount),
+        betAmount: parseFloat(voteAmount),
         placedAt: new Date(),
         market: market,
         outcome: selectedOutcome
@@ -345,7 +345,7 @@ export default function VotePage() {
       id: `${market.id}-${selectedOutcome.id}-${Date.now()}`,
       marketId: market.id,
       outcomeId: selectedOutcome.id,
-      voteAmount: parseFloat(voteAmount),
+      betAmount: parseFloat(voteAmount),
       placedAt: new Date(),
       market: market,
       outcome: selectedOutcome
@@ -376,7 +376,7 @@ export default function VotePage() {
         id: favoriteId,
         marketId: market.id,
         outcomeId: selectedOutcome.id,
-        voteAmount: 0,
+        betAmount: 0,
         placedAt: new Date(),
         market: market,
         outcome: selectedOutcome
