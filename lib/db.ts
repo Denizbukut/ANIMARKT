@@ -20,10 +20,8 @@ interface DatabaseMarket {
 console.log('DATABASE_URL:', process.env.POSTGRES_URL ? 'Set' : 'Not set')
 console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set')
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-})
+// Disable database connection due to SSL issues
+const pool = null
 
 // Types matching your database schema
 export interface User {
@@ -119,26 +117,15 @@ export interface Favorite {
 
 // User functions
 export async function createUser(walletAddress: string, username?: string): Promise<User> {
-  const query = `
-    INSERT INTO users (wallet_address, username)
-    VALUES ($1, $2)
-    RETURNING *
-  `
-  const values = [walletAddress, username]
-  const result = await pool.query(query, values)
-  return result.rows[0]
+  throw new Error('Database disabled due to SSL issues')
 }
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
-  const query = 'SELECT * FROM users WHERE wallet_address = $1'
-  const result = await pool.query(query, [walletAddress])
-  return result.rows[0] || null
+  throw new Error('Database disabled due to SSL issues')
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  const query = 'SELECT * FROM users WHERE id = $1'
-  const result = await pool.query(query, [id])
-  return result.rows[0] || null
+  throw new Error('Database disabled due to SSL issues')
 }
 
 // Bet functions
@@ -152,27 +139,11 @@ export async function createBet(
   outcomeName?: string,
   probability?: number
 ): Promise<Bet> {
-  const query = `
-    INSERT INTO bets (user_id, market_id, outcome_id, amount, transaction_hash, market_title, outcome_name, probability, is_real_transaction)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)
-    RETURNING *
-  `
-  const values = [userId, marketId, outcomeId, amount, transactionHash, marketTitle, outcomeName, probability]
-  const result = await pool.query(query, values)
-  return result.rows[0]
+  throw new Error('Database disabled due to SSL issues')
 }
 
 export async function getBetsByUser(userId: string): Promise<Bet[]> {
-  const query = `
-    SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
-    FROM bets b
-    LEFT JOIN markets m ON b.market_id = m.id
-    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
-    WHERE b.user_id = $1
-    ORDER BY b.created_at DESC
-  `
-  const result = await pool.query(query, [userId])
-  return result.rows
+  throw new Error('Database disabled due to SSL issues')
 }
 
 export async function getAllBets(): Promise<Bet[]> {
@@ -211,17 +182,7 @@ export async function getBetById(betId: string): Promise<Bet | null> {
 }
 
 export async function getBetsByWallet(walletAddress: string): Promise<Bet[]> {
-  const query = `
-    SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
-    FROM bets b
-    JOIN users u ON b.user_id = u.id
-    LEFT JOIN markets m ON b.market_id = m.id
-    LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
-    WHERE u.wallet_address = $1
-    ORDER BY b.created_at DESC
-  `
-  const result = await pool.query(query, [walletAddress])
-  return result.rows
+  throw new Error('Database disabled due to SSL issues')
 }
 
 // Market functions

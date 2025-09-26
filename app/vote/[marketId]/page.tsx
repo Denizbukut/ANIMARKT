@@ -153,11 +153,8 @@ export default function VotePage() {
           // Show message that this is a simulation
           alert(`Simulation: Payment sent! Vote successfully placed: ${voteAmount} WLD on "${selectedOutcome.name}"\nNote: This is a simulation - no real transaction was made.`)
           
-          // Don't save to database or localStorage for simulated transactions
-          setIsPlacingVote(false)
-          setVoteAmount('')
-          setSelectedOutcome(null)
-          return
+          // Continue to save the vote even for simulation
+          console.log('Continuing to save simulated vote...')
         } else {
           console.log('MiniKit available, executing real transaction...')
           
@@ -262,19 +259,49 @@ export default function VotePage() {
         return
       }
       
-      // Only proceed if this is a real transaction (not simulated)
+      // Save vote even for simulated transactions so user can see their bets
       if (transactionHash.startsWith('sim_')) {
-        console.log('Skipping vote save for simulated transaction')
-        setIsPlacingVote(false)
-        setVoteAmount('')
-        setSelectedOutcome(null)
-        return
+        console.log('Saving simulated transaction for user visibility')
+        // Mark as simulated but still save it
+        transactionHash = transactionHash.replace('sim_', 'demo_')
       }
       
       console.log('Real transaction completed, saving vote...')
       
-      // Try to save vote to database via API, fallback to localStorage
-      let newVote
+      // Save directly to localStorage (skip database due to SSL issues)
+      const newVote = {
+        id: `vote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        user_id: currentUser.id,
+        market_id: market.id,
+        outcome_id: selectedOutcome.id,
+        amount: parseFloat(voteAmount),
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        market_title: market.title,
+        outcome_name: selectedOutcome.name,
+        probability: selectedOutcome.probability,
+        transaction_hash: transactionHash,
+        isRealTransaction: !transactionHash.startsWith('demo_'),
+        wallet_address: currentUser.wallet_address
+      }
+      
+      console.log('Saving vote to localStorage:', newVote)
+      
+      // Save to localStorage with both keys for compatibility
+      const existingVotes = localStorage.getItem('userVotes')
+      const votes = existingVotes ? JSON.parse(existingVotes) : []
+      votes.push(newVote)
+      localStorage.setItem('userVotes', JSON.stringify(votes))
+      
+      // Also save to anitmarket_votes for compatibility
+      const existingAnitVotes = localStorage.getItem('anitmarket_votes')
+      const anitVotes = existingAnitVotes ? JSON.parse(existingAnitVotes) : []
+      anitVotes.push(newVote)
+      localStorage.setItem('anitmarket_votes', JSON.stringify(anitVotes))
+      
+      console.log('Vote saved to localStorage (both keys). Total votes:', votes.length)
+      
+      // Try to save to database as well (but don't fail if it doesn't work)
       try {
         console.log('Trying to save vote to database...')
         const response = await fetch('/api/bets', {
@@ -289,7 +316,7 @@ export default function VotePage() {
             amount: parseFloat(voteAmount),
             walletAddress: currentUser.wallet_address,
             transactionHash: transactionHash,
-            isRealTransaction: true,
+            isRealTransaction: !transactionHash.startsWith('demo_'),
             marketTitle: market.title,
             outcomeName: selectedOutcome.name,
             probability: selectedOutcome.probability
@@ -297,39 +324,13 @@ export default function VotePage() {
         })
         
         if (response.ok) {
-          newVote = await response.json()
-          console.log('Vote saved to database successfully:', newVote)
+          const dbVote = await response.json()
+          console.log('Vote also saved to database successfully:', dbVote)
         } else {
-          console.log('Database save failed, using localStorage fallback')
-          throw new Error('API failed')
+          console.log('Database save failed, but localStorage save succeeded')
         }
       } catch (error) {
-        console.log('API failed, using localStorage fallback')
-        // Fallback to localStorage
-        newVote = {
-          id: `vote_${Date.now()}`,
-          user_id: currentUser.id,
-          market_id: market.id,
-          outcome_id: selectedOutcome.id,
-          amount: parseFloat(voteAmount),
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          market_title: market.title,
-          outcome_name: selectedOutcome.name,
-          probability: selectedOutcome.probability,
-          transaction_hash: transactionHash,
-          isRealTransaction: true
-        }
-        
-        console.log('Saving vote to localStorage fallback:', newVote)
-        
-        // Save to localStorage
-        const existingVotes = localStorage.getItem('userVotes')
-        const votes = existingVotes ? JSON.parse(existingVotes) : []
-        votes.push(newVote)
-        localStorage.setItem('userVotes', JSON.stringify(votes))
-        
-        console.log('Vote saved to localStorage. Total votes:', votes.length)
+        console.log('Database save failed, but localStorage save succeeded:', error)
       }
       
       // Create favorite vote for favorites system

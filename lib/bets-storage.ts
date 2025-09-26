@@ -123,16 +123,31 @@ export async function getBetsByWalletWithFallback(walletAddress: string): Promis
   } catch (dbError) {
     console.log('Database failed, using localStorage fallback:', dbError)
     
-    // Fallback to localStorage
-    const savedBets = LocalStorageFallback.getItem('bets')
+    // Fallback to localStorage - check both possible keys
+    let savedBets = LocalStorageFallback.getItem('bets')
+    if (!savedBets) {
+      savedBets = LocalStorageFallback.getItem('userVotes')
+    }
+    if (!savedBets) {
+      savedBets = LocalStorageFallback.getItem('anitmarket_votes')
+    }
+    
     if (!savedBets) return []
     
     const allBets = JSON.parse(savedBets)
-    // For localStorage fallback, we'll need to match by wallet address
-    // This is a simplified approach - in a real app you'd have user-wallet mapping
+    console.log('All localStorage bets:', allBets)
+    
+    // Filter bets for this wallet
     const userBets = allBets.filter((bet: Bet) => {
-      // Check if this bet belongs to the wallet (simplified logic)
-      return bet.isRealTransaction === true // Only show real transactions
+      // Check if bet belongs to this wallet
+      const walletSlice = walletAddress.slice(2, 8)
+      const matchesUserId = bet.user_id && bet.user_id.includes && bet.user_id.includes(walletSlice)
+      const matchesWalletAddress = bet.wallet_address === walletAddress || bet.walletAddress === walletAddress
+      const isRealOrDemo = bet.isRealTransaction === true || (bet.transaction_hash && bet.transaction_hash.startsWith('demo_'))
+      
+      console.log('Checking bet:', { bet, matchesUserId, matchesWalletAddress, isRealOrDemo })
+      
+      return (matchesUserId || matchesWalletAddress) && isRealOrDemo
     })
     
     console.log('Bets fetched from localStorage by wallet:', userBets)

@@ -66,6 +66,13 @@ export default function MyVotesPage() {
         setCurrentUser(currentUser)
 
         console.log('Loading votes for wallet:', userWallet)
+        console.log('Current user:', currentUser)
+
+        // Debug: Check all localStorage keys
+        console.log('All localStorage keys:', Object.keys(localStorage))
+        console.log('anitmarket_votes:', localStorage.getItem('anitmarket_votes'))
+        console.log('userVotes:', localStorage.getItem('userVotes'))
+        console.log('currentUser:', localStorage.getItem('currentUser'))
 
         // First try to load from localStorage (since DB connection has issues)
         // Check both possible localStorage keys
@@ -85,29 +92,44 @@ export default function MyVotesPage() {
             console.log('Current user id:', currentUser.id)
             console.log('Wallet slice:', userWallet.slice(2, 8))
             
-            return vote.isRealTransaction === true && 
-                   (vote.user_id === currentUser.id || 
-                    (vote.user_id && vote.user_id.includes && vote.user_id.includes(userWallet.slice(2, 8))))
+            // More flexible matching - check if vote belongs to this wallet
+            const isRealTransaction = vote.isRealTransaction === true
+            const isDemoTransaction = vote.transaction_hash && vote.transaction_hash.startsWith('demo_')
+            const matchesUserId = vote.user_id === currentUser.id
+            const matchesWalletSlice = vote.user_id && vote.user_id.includes && vote.user_id.includes(userWallet.slice(2, 8))
+            const matchesWalletAddress = vote.wallet_address === userWallet || vote.walletAddress === userWallet
+            
+            console.log('Matching criteria:', { isRealTransaction, isDemoTransaction, matchesUserId, matchesWalletSlice, matchesWalletAddress })
+            
+            // Show both real transactions and demo transactions for this wallet
+            return (isRealTransaction || isDemoTransaction) && (matchesUserId || matchesWalletSlice || matchesWalletAddress)
           })
           console.log('Real votes for this wallet:', realVotes)
           setVotes(realVotes)
+          
+          // If we found votes in localStorage, still try API to get latest data
+          if (realVotes.length > 0) {
+            console.log('Found votes in localStorage, but still trying API for latest data')
+          }
         } else {
           console.log('No saved votes found in localStorage (checked both anitmarket_votes and userVotes)')
-          setVotes([])
         }
 
-        // Also try API (but don't rely on it due to DB connection issues)
+        // Also try API (database first, then localStorage fallback)
         try {
-          const response = await fetch(`/api/votes?walletAddress=${userWallet}`)
+          const response = await fetch(`/api/bets?walletAddress=${userWallet}`)
           if (response.ok) {
             const userVotes = await response.json()
-            console.log('Votes from API:', userVotes)
+            console.log('Votes from API (database):', userVotes)
             if (userVotes.length > 0) {
               setVotes(userVotes)
+              return // Exit early if we got votes from database
             }
+          } else {
+            console.log('API failed with status:', response.status)
           }
         } catch (apiError) {
-          console.log('API failed, using localStorage data')
+          console.log('API failed, using localStorage data:', apiError)
         }
 
       } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBetWithFallback, getBetsByUserWithFallback, getBetsByWalletWithFallback, createUserWithFallback } from '@/lib/bets-storage'
+import { createBet, getUserByWallet, createUser, getBetsByUser, getBetsByWallet } from '@/lib/db'
 import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
@@ -53,13 +54,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fallback to localStorage-based functions for user/wallet queries
-    if (bets.length === 0) {
-      if (userId) {
-        bets = await getBetsByUserWithFallback(userId)
-      } else if (walletAddress) {
-        bets = await getBetsByWalletWithFallback(walletAddress)
-      }
+    // Skip database for now due to SSL issues, use localStorage directly
+    console.log('Skipping database due to SSL issues, using localStorage directly')
+    
+    if (userId) {
+      console.log('Fetching bets from localStorage for user:', userId)
+      bets = await getBetsByUserWithFallback(userId)
+      console.log('localStorage bets for user:', bets.length)
+    } else if (walletAddress) {
+      console.log('Fetching bets from localStorage for wallet:', walletAddress)
+      bets = await getBetsByWalletWithFallback(walletAddress)
+      console.log('localStorage bets for wallet:', bets.length)
     }
 
     return NextResponse.json(bets)
@@ -83,8 +88,23 @@ export async function POST(request: NextRequest) {
 
     // If no userId but walletAddress provided, get or create user
     if (!finalUserId && walletAddress) {
-      const user = await createUserWithFallback(walletAddress, 'Demo User')
-      finalUserId = user.id
+      try {
+        // Try to get existing user first
+        const existingUser = await getUserByWallet(walletAddress)
+        if (existingUser) {
+          finalUserId = existingUser.id
+          console.log('Found existing user in PostgreSQL:', existingUser)
+        } else {
+          // Create new user
+          const user = await createUser(walletAddress, `User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`)
+          finalUserId = user.id
+          console.log('Created new user in PostgreSQL:', user)
+        }
+      } catch (userError) {
+        console.log('PostgreSQL user creation failed, using fallback:', userError)
+        const user = await createUserWithFallback(walletAddress, 'Demo User')
+        finalUserId = user.id
+      }
     }
 
     if (!finalUserId || !marketId || !outcomeId || !amount) {
@@ -94,6 +114,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Skip database for now due to SSL issues, use localStorage directly
+    console.log('Skipping database due to SSL issues, using localStorage directly')
+    
     const bet = await createBetWithFallback(
       finalUserId, 
       marketId, 
@@ -106,6 +129,7 @@ export async function POST(request: NextRequest) {
       body.outcomeName,
       body.probability
     )
+    console.log('Bet created in localStorage successfully:', bet)
     
     console.log('Bet created successfully:', bet)
     return NextResponse.json(bet, { status: 201 })
