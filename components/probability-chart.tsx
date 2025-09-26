@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 
 interface ProbabilityChartProps {
   outcomes: MarketOutcome[]
+  marketId?: string
   className?: string
 }
 
@@ -69,7 +70,7 @@ function calculateRealProbabilitiesFromVotes(votes: any[]) {
   return { yes: yesPercentage, no: noPercentage }
 }
 
-export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps) {
+export function ProbabilityChart({ outcomes, marketId: propMarketId, className }: ProbabilityChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('ALL')
   const [realVotes, setRealVotes] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -78,8 +79,8 @@ export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps)
   const primaryOutcome = outcomes.find(o => o.name === 'Yes') || outcomes[0]
   const primaryColor = getStandardizedColor(primaryOutcome?.name || '', primaryOutcome?.color)
   
-  // Get market ID from outcomes - try different possible ID fields
-  const marketId = outcomes[0]?.bet_id || outcomes[0]?.market_id || outcomes[0]?.id
+  // Get market ID from prop or use outcome ID as fallback
+  const marketId = propMarketId || outcomes[0]?.id
   
   // Load votes from database when component mounts
   useEffect(() => {

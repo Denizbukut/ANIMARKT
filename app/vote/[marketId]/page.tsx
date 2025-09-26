@@ -591,7 +591,7 @@ export default function VotePage() {
                   <BarChart3 className="h-5 w-5 text-primary" />
                   <h3 className="text-lg font-semibold text-foreground">Price History</h3>
                 </div>
-                <ProbabilityChart outcomes={market.outcomes} />
+                <ProbabilityChart outcomes={market.outcomes} marketId={market.id} />
               </div>
 
               {/* Outcome Selection */}
