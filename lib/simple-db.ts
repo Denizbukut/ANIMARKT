@@ -57,8 +57,8 @@ export function createUser(walletAddress: string, username?: string) {
 export function getUserByWallet(walletAddress: string) {
   const stmt = db.prepare('SELECT * FROM users WHERE wallet_address = ?')
   const user = stmt.get(walletAddress)
-  if (user) {
-    console.log('✅ Benutzer gefunden:', user.id)
+  if (user && typeof user === 'object' && user !== null && 'id' in user) {
+    console.log('✅ Benutzer gefunden:', (user as any).id)
   }
   return user || null
 }
@@ -178,9 +178,9 @@ export function getBetStats() {
   const uniqueUsers = db.prepare('SELECT COUNT(DISTINCT user_id) as count FROM bets').get()
   
   return {
-    totalBets: totalBets.count,
-    totalAmount: totalAmount.total || 0,
-    uniqueUsers: uniqueUsers.count
+    totalBets: (totalBets as any).count,
+    totalAmount: (totalAmount as any).total || 0,
+    uniqueUsers: (uniqueUsers as any).count
   }
 }
 
