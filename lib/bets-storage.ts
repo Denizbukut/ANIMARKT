@@ -142,7 +142,7 @@ export async function getBetsByWalletWithFallback(walletAddress: string): Promis
       // Check if bet belongs to this wallet
       const walletSlice = walletAddress.slice(2, 8)
       const matchesUserId = bet.user_id && bet.user_id.includes && bet.user_id.includes(walletSlice)
-      const matchesWalletAddress = bet.wallet_address === walletAddress || bet.walletAddress === walletAddress
+      const matchesWalletAddress = ((bet as any).wallet_address && (bet as any).wallet_address === walletAddress) || ((bet as any).walletAddress && (bet as any).walletAddress === walletAddress)
       const isRealOrDemo = bet.isRealTransaction === true || (bet.transaction_hash && bet.transaction_hash.startsWith('demo_'))
       
       console.log('Checking bet:', { bet, matchesUserId, matchesWalletAddress, isRealOrDemo })

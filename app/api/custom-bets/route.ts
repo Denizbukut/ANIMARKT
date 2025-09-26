@@ -5,6 +5,15 @@ export async function GET(request: NextRequest) {
   try {
     console.log('🔄 Fetching custom bets from database...')
     
+    // Check if pool is available
+    if (!pool) {
+      console.log('❌ Database pool not available')
+      return NextResponse.json(
+        { error: 'Database not connected' },
+        { status: 500 }
+      )
+    }
+    
     // Test database connection first
     console.log('🔍 Testing database connection...')
     await pool.query('SELECT 1')

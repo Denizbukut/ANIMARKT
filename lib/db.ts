@@ -20,8 +20,14 @@ interface DatabaseMarket {
 console.log('DATABASE_URL:', process.env.POSTGRES_URL ? 'Set' : 'Not set')
 console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Not set')
 
-// Disable database connection due to SSL issues
-const pool = null
+// PostgreSQL connection with SSL configuration
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Allow self-signed certificates
+    ca: process.env.DATABASE_CA_CERT, // Optional: provide CA certificate
+  }
+})
 
 // Types matching your database schema
 export interface User {
@@ -62,6 +68,11 @@ export interface Bet {
   market_title?: string
   outcome_name?: string
   probability?: number
+  // localStorage-specific fields
+  wallet_address?: string
+  walletAddress?: string
+  isRealTransaction?: boolean
+  is_real_transaction?: boolean
 }
 
 export interface CustomBet {
@@ -117,15 +128,32 @@ export interface Favorite {
 
 // User functions
 export async function createUser(walletAddress: string, username?: string): Promise<User> {
-  throw new Error('Database disabled due to SSL issues')
+  if (!pool) throw new Error('Database not connected')
+  
+  const query = `
+    INSERT INTO users (wallet_address, username, created_at)
+    VALUES ($1, $2, NOW())
+    RETURNING *
+  `
+  const values = [walletAddress, username || `User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`]
+  const result = await pool.query(query, values)
+  return result.rows[0]
 }
 
 export async function getUserByWallet(walletAddress: string): Promise<User | null> {
-  throw new Error('Database disabled due to SSL issues')
+  if (!pool) throw new Error('Database not connected')
+  
+  const query = 'SELECT * FROM users WHERE wallet_address = $1'
+  const result = await pool.query(query, [walletAddress])
+  return result.rows[0] || null
 }
 
 export async function getUserById(id: string): Promise<User | null> {
-  throw new Error('Database disabled due to SSL issues')
+  if (!pool) throw new Error('Database not connected')
+  
+  const query = 'SELECT * FROM users WHERE id = $1'
+  const result = await pool.query(query, [id])
+  return result.rows[0] || null
 }
 
 // Bet functions
@@ -139,11 +167,34 @@ export async function createBet(
   outcomeName?: string,
   probability?: number
 ): Promise<Bet> {
-  throw new Error('Database disabled due to SSL issues')
+  if (!pool) throw new Error('Database not connected')
+  
+  const query = `
+    INSERT INTO bets (user_id, market_id, outcome_id, amount, transaction_hash, market_title, outcome_name, probability, is_real_transaction, created_at)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+    RETURNING *
+  `
+  const values = [
+    userId, 
+    marketId, 
+    outcomeId, 
+    amount, 
+    transactionHash || null,
+    marketTitle || null,
+    outcomeName || null,
+    probability || null,
+    !transactionHash?.startsWith('demo_') // Real transaction if not demo
+  ]
+  const result = await pool.query(query, values)
+  return result.rows[0]
 }
 
 export async function getBetsByUser(userId: string): Promise<Bet[]> {
-  throw new Error('Database disabled due to SSL issues')
+  if (!pool) throw new Error('Database not connected')
+  
+  const query = 'SELECT * FROM bets WHERE user_id = $1 ORDER BY created_at DESC'
+  const result = await pool.query(query, [userId])
+  return result.rows
 }
 
 export async function getAllBets(): Promise<Bet[]> {
