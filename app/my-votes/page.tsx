@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { MarketStats } from '@/components/market-stats'
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, CheckCircle, XCircle, AlertCircle, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWallet } from '@/contexts/WalletContext'
 
@@ -66,70 +67,81 @@ export default function MyVotesPage() {
         setCurrentUser(currentUser)
 
         console.log('Loading votes for wallet:', userWallet)
-        console.log('Current user:', currentUser)
 
-        // Debug: Check all localStorage keys
-        console.log('All localStorage keys:', Object.keys(localStorage))
-        console.log('anitmarket_votes:', localStorage.getItem('anitmarket_votes'))
-        console.log('userVotes:', localStorage.getItem('userVotes'))
-        console.log('currentUser:', localStorage.getItem('currentUser'))
+        // Optimized loading strategy: Try API first with timeout, fallback to localStorage
+        let votes: any[] = []
+        let useLocalStorage = false
 
-        // First try to load from localStorage (since DB connection has issues)
-        // Check both possible localStorage keys
-        let savedVotes = localStorage.getItem('anitmarket_votes')
-        if (!savedVotes) {
-          savedVotes = localStorage.getItem('userVotes')
-        }
+        // Try API with 3 second timeout and retry mechanism
+        let apiAttempts = 0
+        const maxAttempts = 2
         
-        if (savedVotes) {
-          const allVotes = JSON.parse(savedVotes)
-          console.log('All saved votes:', allVotes)
-          
-          // Filter to only show real transactions for this wallet
-          const realVotes = allVotes.filter((vote: any) => {
-            console.log('Checking vote:', vote)
-            console.log('Vote user_id:', vote.user_id)
-            console.log('Current user id:', currentUser.id)
-            console.log('Wallet slice:', userWallet.slice(2, 8))
+        while (apiAttempts < maxAttempts && !useLocalStorage) {
+          try {
+            console.log(`🔍 Fetching votes from API (attempt ${apiAttempts + 1}/${maxAttempts})...`)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 3000) // 3 second timeout
             
-            // More flexible matching - check if vote belongs to this wallet
-            const isRealTransaction = vote.isRealTransaction === true
-            const isDemoTransaction = vote.transaction_hash && vote.transaction_hash.startsWith('demo_')
-            const matchesUserId = vote.user_id === currentUser.id
-            const matchesWalletSlice = vote.user_id && vote.user_id.includes && vote.user_id.includes(userWallet.slice(2, 8))
-            const matchesWalletAddress = vote.wallet_address === userWallet || vote.walletAddress === userWallet
+            const response = await fetch(`/api/bets?walletAddress=${userWallet}`, {
+              signal: controller.signal
+            })
+            clearTimeout(timeoutId)
             
-            console.log('Matching criteria:', { isRealTransaction, isDemoTransaction, matchesUserId, matchesWalletSlice, matchesWalletAddress })
+            if (response.ok) {
+              const apiVotes = await response.json()
+              if (apiVotes.length > 0) {
+                console.log('✅ Using API votes:', apiVotes.length)
+                setVotes(apiVotes)
+                return
+              }
+            }
             
-            // Show both real transactions and demo transactions for this wallet
-            return (isRealTransaction || isDemoTransaction) && (matchesUserId || matchesWalletSlice || matchesWalletAddress)
-          })
-          console.log('Real votes for this wallet:', realVotes)
-          setVotes(realVotes)
-          
-          // If we found votes in localStorage, still try API to get latest data
-          if (realVotes.length > 0) {
-            console.log('Found votes in localStorage, but still trying API for latest data')
+            // If we get here, API returned empty or failed
+            apiAttempts++
+            if (apiAttempts >= maxAttempts) {
+              console.log('⚠️ API failed after all attempts, using localStorage fallback')
+              useLocalStorage = true
+            }
+          } catch (apiError) {
+            console.log(`⚠️ API attempt ${apiAttempts + 1} failed:`, (apiError as Error).message)
+            apiAttempts++
+            if (apiAttempts >= maxAttempts) {
+              console.log('⚠️ API failed after all attempts, using localStorage fallback')
+              useLocalStorage = true
+            }
           }
-        } else {
-          console.log('No saved votes found in localStorage (checked both anitmarket_votes and userVotes)')
         }
 
-        // Also try API (database first, then localStorage fallback)
-        try {
-          const response = await fetch(`/api/bets?walletAddress=${userWallet}`)
-          if (response.ok) {
-            const userVotes = await response.json()
-            console.log('Votes from API (database):', userVotes)
-            if (userVotes.length > 0) {
-              setVotes(userVotes)
-              return // Exit early if we got votes from database
-            }
-          } else {
-            console.log('API failed with status:', response.status)
+        // Fallback to localStorage if API failed
+        if (useLocalStorage) {
+          console.log('🔄 Loading from localStorage...')
+          
+          // Check both possible localStorage keys
+          let savedVotes = localStorage.getItem('anitmarket_votes')
+          if (!savedVotes) {
+            savedVotes = localStorage.getItem('userVotes')
           }
-        } catch (apiError) {
-          console.log('API failed, using localStorage data:', apiError)
+          
+          if (savedVotes) {
+            const allVotes = JSON.parse(savedVotes)
+            
+            // Filter votes for this wallet
+            const realVotes = allVotes.filter((vote: any) => {
+              const isRealTransaction = vote.isRealTransaction === true
+              const isDemoTransaction = vote.transaction_hash && vote.transaction_hash.startsWith('demo_')
+              const matchesUserId = vote.user_id === currentUser.id
+              const matchesWalletSlice = vote.user_id && vote.user_id.includes && vote.user_id.includes(userWallet.slice(2, 8))
+              const matchesWalletAddress = vote.wallet_address === userWallet || vote.walletAddress === userWallet
+              
+              return (isRealTransaction || isDemoTransaction) && (matchesUserId || matchesWalletSlice || matchesWalletAddress)
+            })
+            
+            console.log('✅ Using localStorage votes:', realVotes.length)
+            setVotes(realVotes)
+          } else {
+            console.log('⚠️ No votes found in localStorage')
+            setVotes([])
+          }
         }
 
       } catch (error) {
@@ -204,6 +216,7 @@ export default function MyVotesPage() {
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading your votes...</p>
+          <p className="text-sm text-muted-foreground mt-2">This should only take a moment</p>
         </div>
       </div>
     )
@@ -293,7 +306,7 @@ export default function MyVotesPage() {
                       <h3 className="text-lg font-semibold text-foreground mb-2 leading-tight">
                         {bet.market_title}
                       </h3>
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-sm mb-3">
                         <span className="text-muted-foreground">Voted on:</span>
                         <span className="font-semibold text-foreground bg-muted/50 px-2 py-1 rounded-md">
                           {bet.outcome_name}
@@ -301,6 +314,29 @@ export default function MyVotesPage() {
                         <span className="text-muted-foreground">
                           ({bet.probability.toFixed(1)}%)
                         </span>
+                      </div>
+                      
+                      {/* Market Stats - Calculate from all votes */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {(() => {
+                          // Calculate stats for this market from all votes
+                          const marketVotes = votes.filter(v => v.market_id === bet.market_id)
+                          const marketVolume = marketVotes.reduce((sum, v) => sum + v.amount, 0)
+                          const marketTraders = new Set(marketVotes.map(v => (v as any).wallet_address)).size
+                          
+                          return (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <TrendingUp className="h-3 w-3" />
+                                <span>${marketVolume.toFixed(2)}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                <span>{marketTraders} traders</span>
+                              </div>
+                            </>
+                          )
+                        })()}
                       </div>
                     </div>
                     

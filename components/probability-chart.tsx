@@ -2,7 +2,7 @@
 
 import { MarketOutcome } from '@/types/market'
 import { cn, getStandardizedColor } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface ProbabilityChartProps {
   outcomes: MarketOutcome[]
@@ -14,8 +14,21 @@ interface ChartDataPoint {
   probability: number
 }
 
-// Helper function to get real votes from localStorage
-function getRealVotesFromLocalStorage() {
+// Helper function to get real votes from database and localStorage
+async function getRealVotesFromDatabase(marketId: string) {
+  try {
+    // Try to get votes from database first
+    const response = await fetch(`/api/bets?marketId=${marketId}`)
+    if (response.ok) {
+      const dbVotes = await response.json()
+      console.log('✅ Got votes from database:', dbVotes.length)
+      return dbVotes
+    }
+  } catch (error) {
+    console.log('❌ Database fetch failed, using localStorage:', error)
+  }
+  
+  // Fallback to localStorage
   try {
     const savedVotes = localStorage.getItem('userVotes') || localStorage.getItem('userBets')
     if (!savedVotes) return []
@@ -28,6 +41,8 @@ function getRealVotesFromLocalStorage() {
 
 // Helper function to calculate real probabilities from user votes
 function calculateRealProbabilitiesFromVotes(votes: any[]) {
+  console.log('📊 Calculating probabilities from votes:', votes.length)
+  
   const yesVotes = votes.filter(vote => 
     vote.outcome_name?.toLowerCase().includes('yes') || 
     vote.outcome_name?.toLowerCase().includes('ja')
@@ -37,27 +52,85 @@ function calculateRealProbabilitiesFromVotes(votes: any[]) {
     vote.outcome_name?.toLowerCase().includes('nein')
   )
   
+  console.log('📊 Yes votes:', yesVotes.length, 'No votes:', noVotes.length)
+  
   const totalVotes = yesVotes.length + noVotes.length
   
   if (totalVotes === 0) {
+    console.log('📊 No votes found, using 50/50')
     return { yes: 50, no: 50 }
   }
   
   const yesPercentage = Math.round((yesVotes.length / totalVotes) * 100)
   const noPercentage = 100 - yesPercentage
   
+  console.log('📊 Calculated probabilities:', { yes: yesPercentage, no: noPercentage })
+  
   return { yes: yesPercentage, no: noPercentage }
 }
 
 export function ProbabilityChart({ outcomes, className }: ProbabilityChartProps) {
   const [selectedTimeframe, setSelectedTimeframe] = useState('ALL')
+  const [realVotes, setRealVotes] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   
   // Get the primary outcome (Yes for yes/no questions, or first outcome)
   const primaryOutcome = outcomes.find(o => o.name === 'Yes') || outcomes[0]
   const primaryColor = getStandardizedColor(primaryOutcome?.name || '', primaryOutcome?.color)
   
+  // Get market ID from outcomes - try different possible ID fields
+  const marketId = outcomes[0]?.bet_id || outcomes[0]?.market_id || outcomes[0]?.id
+  
+  // Load votes from database when component mounts
+  useEffect(() => {
+    async function loadVotes() {
+      if (!marketId) return
+      
+      setIsLoading(true)
+      try {
+        const votes = await getRealVotesFromDatabase(marketId)
+        setRealVotes(votes)
+        console.log('📊 Loaded votes for chart:', votes.length)
+      } catch (error) {
+        console.error('❌ Error loading votes for chart:', error)
+        setRealVotes([])
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadVotes()
+    
+    // Set up interval to refresh votes every 5 seconds
+    const interval = setInterval(loadVotes, 5000)
+    
+    return () => clearInterval(interval)
+  }, [marketId])
+  
+  // Listen for storage changes to update chart in real-time
+  useEffect(() => {
+    const handleStorageChange = () => {
+      if (!marketId) return
+      
+      // Reload votes when localStorage changes
+      getRealVotesFromDatabase(marketId).then(votes => {
+        setRealVotes(votes)
+        console.log('📊 Chart updated from storage change:', votes.length)
+      })
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also listen for custom events (for same-tab updates)
+    window.addEventListener('betPlaced', handleStorageChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('betPlaced', handleStorageChange)
+    }
+  }, [marketId])
+  
   // Update outcomes with real vote-based probabilities
-  const realVotes = getRealVotesFromLocalStorage()
   const realProbabilities = calculateRealProbabilitiesFromVotes(realVotes)
   
   // Update outcomes with real probabilities

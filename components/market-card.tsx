@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Market } from '@/types/market'
 import { formatVolume, formatPercentage, getStandardizedColor } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { MarketStats } from '@/components/market-stats'
 import { Share2, Clock, TrendingUp, Users, Bookmark } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -238,14 +239,11 @@ export function MarketCard({ market }: MarketCardProps) {
         {/* Volume and Stats */}
         <div className="flex items-center justify-between mb-4 text-xs">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <TrendingUp className="h-3 w-3" />
-              <span>${formatVolume(market.volume)}</span>
-            </div>
-            <div className="flex items-center gap-1 text-muted-foreground">
-              <Users className="h-3 w-3" />
-              <span>{Math.floor(market.volume / 10000)} traders</span>
-            </div>
+            <MarketStats 
+              marketId={market.id} 
+              initialVolume={market.volume} 
+              initialTraders={Math.floor(market.volume / 10000)} 
+            />
           </div>
           
           {market.endTime && !market.isLive && (

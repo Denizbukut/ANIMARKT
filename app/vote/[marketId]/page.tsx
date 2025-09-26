@@ -11,6 +11,7 @@ import { addToFavorites, isFavorite, removeFromFavorites, formatVolume, getStand
 import { PaymentModal } from '@/components/payment-modal-simple'
 import { getCustomBets, convertCustomBetToMarket } from '@/lib/custom-bets-api'
 import { ProbabilityChart } from '@/components/probability-chart'
+import { MarketStats } from '@/components/market-stats'
 import { useWallet } from '@/contexts/WalletContext'
 import { MiniKit } from '@worldcoin/minikit-js'
 
@@ -32,28 +33,48 @@ export default function VotePage() {
     async function loadMarket() {
       try {
         setLoading(true)
+        setError(null)
         const marketId = params.marketId as string
         
-        // Load from custom bets only
-        const customBets = await getCustomBets()
-        const customBet = customBets.find(bet => bet.id === marketId)
+        // Optimized loading with timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => {
+          controller.abort()
+          setError('Loading timeout - please try again')
+          setLoading(false)
+        }, 5000) // 5 second timeout
         
-        if (customBet) {
-          const convertedMarket = convertCustomBetToMarket(customBet)
-          setMarket(convertedMarket)
+        try {
+          // Load from custom bets with timeout
+          const customBets = await getCustomBets()
+          clearTimeout(timeoutId)
           
-          // Pre-select outcome if specified in URL
-          const outcomeId = searchParams.get('outcome')
-          if (outcomeId) {
-            const outcome = convertedMarket.outcomes.find((o: any) => o.id === outcomeId)
-            if (outcome) {
-              setSelectedOutcome(outcome)
+          const customBet = customBets.find(bet => bet.id === marketId)
+          
+          if (customBet) {
+            const convertedMarket = convertCustomBetToMarket(customBet)
+            setMarket(convertedMarket)
+            
+            // Pre-select outcome if specified in URL
+            const outcomeId = searchParams.get('outcome')
+            if (outcomeId) {
+              const outcome = convertedMarket.outcomes.find((o: any) => o.id === outcomeId)
+              if (outcome) {
+                setSelectedOutcome(outcome)
+              }
             }
+          } else {
+            setError('Market not found')
+            setTimeout(() => router.push('/'), 2000)
           }
-          
-          setError(null)
-        } else {
-          setError('Market not found')
+        } catch (loadError) {
+          clearTimeout(timeoutId)
+          if ((loadError as Error).name === 'AbortError') {
+            setError('Loading timeout - please try again')
+          } else {
+            setError('Failed to load market data')
+            console.error('Error loading market:', loadError)
+          }
           setTimeout(() => router.push('/'), 2000)
         }
       } catch (err) {
@@ -301,6 +322,11 @@ export default function VotePage() {
       
       console.log('Vote saved to localStorage (both keys). Total votes:', votes.length)
       
+      // Fire custom event to update charts
+      window.dispatchEvent(new CustomEvent('betPlaced', { 
+        detail: { marketId: market.id, outcomeName: selectedOutcome.name } 
+      }))
+      
       // Try to save to database as well (but don't fail if it doesn't work)
       try {
         console.log('Trying to save vote to database...')
@@ -542,14 +568,12 @@ export default function VotePage() {
                     )}
                     
                     <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="h-4 w-4" />
-                        <span>${formatVolume(market.volume)} Volume</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        <span>{Math.floor(market.volume / 10000)} traders</span>
-                      </div>
+                      <MarketStats 
+                        marketId={market.id} 
+                        initialVolume={market.volume} 
+                        initialTraders={Math.floor(market.volume / 10000)}
+                        size="large"
+                      />
                       {market.endTime && (
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4" />

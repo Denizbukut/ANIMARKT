@@ -107,34 +107,30 @@ async function calculateRealVolumeAndTraders(betId: string): Promise<{ totalVolu
 export async function getCustomBets(): Promise<CustomBet[]> {
   try {
     console.log('🔄 Attempting to fetch custom bets from database...')
-    // Fetch custom bets from database
-    const response = await fetch('/api/custom-bets')
+    
+    // Try API with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+    
+    const response = await fetch('/api/custom-bets', {
+      signal: controller.signal
+    })
+    clearTimeout(timeoutId)
+    
     console.log('📡 API Response status:', response.status, response.ok)
     
     if (!response.ok) {
       console.error('❌ Failed to fetch custom bets from database, using fallback')
-      console.log('📊 Using fallback data with volume: 0')
       return getFallbackCustomBets()
     }
     
     const customBetsFromDB = await response.json()
     console.log('✅ Custom bets fetched from database:', customBetsFromDB.length, 'bets')
     
-    // For each custom bet, calculate real volume and trader count
-    const customBetsWithRealData = await Promise.all(
-      customBetsFromDB.map(async (bet: any) => {
-        console.log(`🔍 Calculating volume for bet: ${bet.id}`)
-        const { totalVolume } = await calculateRealVolumeAndTraders(bet.id)
-        console.log(`📈 Bet ${bet.id} volume: ${totalVolume}`)
-        return {
-          ...bet,
-          total_volume: totalVolume
-        }
-      })
-    )
+    // Return the bets directly (volume is already calculated in the API)
+    console.log('🎉 Returning custom bets with volume data')
+    return customBetsFromDB
     
-    console.log('🎉 Returning custom bets with real volume data')
-    return customBetsWithRealData
   } catch (error) {
     console.error('❌ Error fetching custom bets from database:', error)
     console.log('📊 Using fallback data due to error')
@@ -469,7 +465,7 @@ export function convertCustomBetToMarket(customBet: CustomBet): any {
     isLive: false, // No live bets
     endTime: customBet.expired_day,
     image: '🎯', // Custom icon for your bets
-    subcategory: 'Custom Bet',
+    subcategory: customBet.category || 'Other', // Use the actual category instead of "Custom Bet"
     outcomes: outcomesWithCalculatedProbabilities.map(outcome => ({
       id: outcome.id,
       name: outcome.name,

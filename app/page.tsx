@@ -65,8 +65,8 @@ export default function Home() {
         const customBets = await getCustomBets()
         const convertedCustomBets = customBets.map(convertCustomBetToMarket)
         
-        // Combine database markets and custom bets
-        const allMarkets = [...convertedCustomBets, ...dbMarkets]
+        // Only show custom bets, no static database markets
+        const allMarkets = [...convertedCustomBets]
         
         setMarkets(allMarkets)
         setError(null)

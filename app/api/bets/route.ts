@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createBetWithFallback, getBetsByUserWithFallback, getBetsByWalletWithFallback, createUserWithFallback } from '@/lib/bets-storage'
 import { createBet, getUserByWallet, createUser, getBetsByUser, getBetsByWallet } from '@/lib/db'
+import { createBet as createBetSQLite, getUserByWallet as getUserByWalletSQLite, createUser as createUserSQLite, getBetsByUser as getBetsByUserSQLite, getBetsByWallet as getBetsByWalletSQLite, getAllBets } from '@/lib/simple-db'
 import pool from '@/lib/db'
 
 export async function GET(request: NextRequest) {
@@ -14,63 +15,40 @@ export async function GET(request: NextRequest) {
 
     let bets: any[] = []
 
-    // Try database first, fallback to localStorage
+    // Optimized: Try SQLite first with error handling
     try {
-      console.log('🔍 Attempting database connection...')
-      
-      // Check if pool is available
-      if (!pool) {
-        throw new Error('Database pool not available')
-      }
-      
-      // Test database connection
-      await pool.query('SELECT 1')
-      console.log('✅ Database connection successful')
-      
       if (marketId) {
-        console.log('🔍 Fetching bets from database for market:', marketId)
-        const query = `
-          SELECT b.*, m.title as market_title, mo.name as outcome_name, mo.probability
-          FROM bets b
-          LEFT JOIN markets m ON b.market_id = m.id
-          LEFT JOIN market_outcomes mo ON b.outcome_id = mo.id
-          WHERE b.market_id = $1 AND b.is_real_transaction = true
-          ORDER BY b.created_at DESC
-        `
-        const result = await pool.query(query, [marketId])
-        bets = result.rows
-        console.log('✅ Bets fetched from database for market:', marketId, 'Count:', bets.length)
+        const allBets = getAllBets()
+        bets = allBets.filter((bet: any) => bet.market_id === marketId)
+        console.log('✅ SQLite bets for market:', bets.length)
       } else if (userId) {
-        console.log('🔍 Fetching bets from database for user:', userId)
-        bets = await getBetsByUser(userId)
-        console.log('✅ Database bets for user:', bets.length)
+        bets = getBetsByUserSQLite(userId)
+        console.log('✅ SQLite bets for user:', bets.length)
       } else if (walletAddress) {
-        console.log('🔍 Fetching bets from database for wallet:', walletAddress)
-        bets = await getBetsByWallet(walletAddress)
-        console.log('✅ Database bets for wallet:', bets.length)
+        bets = getBetsByWalletSQLite(walletAddress)
+        console.log('✅ SQLite bets for wallet:', bets.length)
       }
       
-      // If we got bets from database, return them
+      // Return immediately if we have data
       if (bets.length > 0) {
-        console.log('✅ Returning database bets:', bets.length)
         return NextResponse.json(bets)
       }
       
-    } catch (dbError) {
-      console.log('❌ Database failed, using localStorage fallback:', dbError)
+    } catch (sqliteError) {
+      console.log('⚠️ SQLite failed, trying localStorage fallback')
     }
     
-    // Fallback to localStorage
-    console.log('🔄 Using localStorage fallback...')
-    
-    if (userId) {
-      console.log('Fetching bets from localStorage for user:', userId)
-      bets = await getBetsByUserWithFallback(userId)
-      console.log('localStorage bets for user:', bets.length)
-    } else if (walletAddress) {
-      console.log('Fetching bets from localStorage for wallet:', walletAddress)
-      bets = await getBetsByWalletWithFallback(walletAddress)
-      console.log('localStorage bets for wallet:', bets.length)
+    // Fallback to localStorage only if SQLite failed or returned no data
+    try {
+      if (userId) {
+        bets = await getBetsByUserWithFallback(userId)
+      } else if (walletAddress) {
+        bets = await getBetsByWalletWithFallback(walletAddress)
+      }
+      console.log('✅ localStorage bets:', bets.length)
+    } catch (localStorageError) {
+      console.log('❌ localStorage fallback failed:', localStorageError)
+      bets = []
     }
 
     return NextResponse.json(bets)
@@ -95,19 +73,19 @@ export async function POST(request: NextRequest) {
     // If no userId but walletAddress provided, get or create user
     if (!finalUserId && walletAddress) {
       try {
-        // Try database first
-        const existingUser = await getUserByWallet(walletAddress)
-        if (existingUser) {
-          finalUserId = existingUser.id
-          console.log('Found existing user in database:', existingUser)
+        // Try SQLite first
+        const existingUser = getUserByWalletSQLite(walletAddress)
+        if (existingUser && typeof existingUser === 'object' && existingUser !== null && 'id' in existingUser) {
+          finalUserId = (existingUser as any).id
+          console.log('Found existing user in SQLite:', existingUser)
         } else {
-          // Create new user in database
-          const user = await createUser(walletAddress, `User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`)
+          // Create new user in SQLite
+          const user = createUserSQLite(walletAddress, `User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`)
           finalUserId = user.id
-          console.log('Created new user in database:', user)
+          console.log('Created new user in SQLite:', user)
         }
       } catch (userError) {
-        console.log('Database user creation failed, using fallback:', userError)
+        console.log('SQLite user creation failed, using fallback:', userError)
         const user = await createUserWithFallback(walletAddress, 'Demo User')
         finalUserId = user.id
       }
@@ -120,20 +98,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Try database first, fallback to localStorage
+    // Try SQLite first, fallback to localStorage
     try {
-      console.log('🔍 Attempting to create bet in database...')
+      console.log('🔍 Attempting to create bet in SQLite...')
       
-      // Check if pool is available
-      if (!pool) {
-        throw new Error('Database pool not available')
-      }
-      
-      // Test database connection
-      await pool.query('SELECT 1')
-      console.log('✅ Database connection successful for bet creation')
-      
-      const bet = await createBet(
+      const bet = createBetSQLite(
         finalUserId, 
         marketId, 
         outcomeId, 
@@ -143,11 +112,11 @@ export async function POST(request: NextRequest) {
         body.outcomeName,
         body.probability
       )
-      console.log('✅ Bet created in database successfully:', bet)
+      console.log('✅ Bet created in SQLite successfully:', bet)
       return NextResponse.json(bet)
       
-    } catch (dbError) {
-      console.log('❌ Database bet creation failed, using localStorage fallback:', dbError)
+    } catch (sqliteError) {
+      console.log('❌ SQLite bet creation failed, using localStorage fallback:', sqliteError)
     }
     
     // Fallback to localStorage
