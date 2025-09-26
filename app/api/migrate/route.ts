@@ -35,9 +35,9 @@ export async function POST(request: NextRequest) {
         module.getUserByWallet(walletAddress)
       )
       
-      if (existingUser) {
+      if (existingUser && typeof existingUser === 'object' && existingUser !== null && 'id' in existingUser) {
         user = existingUser
-        console.log('✅ User found:', user.id)
+        console.log('✅ User found:', (user as any).id)
       } else {
         // Create new user
         user = createUser(walletAddress, `User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`)
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     for (const localStorageBet of localStorageBets) {
       try {
         const bet = createBet(
-          user.id,
+          (user as any).id,
           localStorageBet.market_id || localStorageBet.outcome_id,
           localStorageBet.outcome_id,
           localStorageBet.amount,
